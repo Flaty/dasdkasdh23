@@ -21,15 +21,14 @@ interface Props {
     code: string
   }[]
   onSelect: (point: { label: string; code: string }) => void
-  onMapCenterChange?: (coords: [number, number]) => void // ← вот это
+  onMapCenterChange?: (coords: [number, number]) => void
 }
-
 
 export default function YandexMap({
   initialCenter,
   points,
   onSelect,
-  onMapCenterChange, // ← ОБЯЗАТЕЛЬНО сюда
+  onMapCenterChange,
 }: Props) {
   const mapRef = useRef<YMap | null>(null)
   const [selectedAddress, setSelectedAddress] = useState<string>("")
@@ -43,23 +42,20 @@ export default function YandexMap({
     }
   }, [initialCenter])
 
-const handlePlacemarkClick = (point: Point) => {
-  setSelectedAddress(point.label)
-  setSelectedCode(point.code)
-  onSelect(point)
+  const handlePlacemarkClick = (point: Point) => {
+    setSelectedAddress(point.label)
+    setSelectedCode(point.code)
+    onSelect(point)
 
-  if (mapRef.current) {
-    const coords = point.coords
-    mapRef.current.setCenter(coords, 15, { duration: 300 })
-
-    // вызываем коллбек, если передан
-    onMapCenterChange?.(coords)
+    if (mapRef.current) {
+      const coords = point.coords
+      mapRef.current.setCenter(coords, 15, { duration: 300 })
+      onMapCenterChange?.(coords)
+    }
   }
-}
-
 
   return (
-    <div className="relative">
+    <div className="relative aspect-[4/3] w-full">
       <YMaps query={{ apikey: "e72cd4cd-5a96-48f0-bf1c-20be54500cf7" }}>
         <Map
           instanceRef={(ref) => (mapRef.current = ref)}
@@ -67,11 +63,12 @@ const handlePlacemarkClick = (point: Point) => {
             center: initialCenter,
             zoom: 13,
           }}
-          width="100%"
-          height="300px"
+          style={{ width: '100%', height: '100%' }}
           options={{
             suppressMapOpenBlock: true,
             yandexMapDisablePoiInteractivity: true,
+            // Отключаем контролы карты для чистого вида
+            controls: [],
           }}
         >
           <Clusterer
@@ -86,41 +83,35 @@ const handlePlacemarkClick = (point: Point) => {
               clusterBalloonPagerSize: 5,
             }}
           >
-{points.map((p) => (
-  <Placemark
-    key={p.code}
-    geometry={p.coords}
-    properties={{
-      balloonContent: p.label,
-      hintContent: p.label,
-    }}
-    options={{
-      preset: selectedCode === p.code ? 'islands#blueDotIcon' : 'islands#blueCircleDotIcon',
-      iconColor: selectedCode === p.code ? '#0ea5e9' : '#3b82f6',
-      hideIconOnBalloonOpen: false,
-      iconLayout: 'default#image',
-      iconImageSize: selectedCode === p.code ? [40, 40] : [30, 30],
-      iconImageOffset: selectedCode === p.code ? [-20, -20] : [-15, -15],
-    }}
-    onClick={() => {
-      handlePlacemarkClick(p)
-      onSelect?.({ code: p.code, label: p.label }) // ✅ передаём наружу выбранную точку
-    }}
-    modules={['geoObject.addon.balloon', 'geoObject.addon.hint']}
-  />
-))}
-
+            {points.map((p) => (
+              <Placemark
+                key={p.code}
+                geometry={p.coords}
+                properties={{
+                  // Полностью пустые свойства - никакой информации на карте
+                }}
+                options={{
+                  preset: selectedCode === p.code ? 'islands#redDotIcon' : 'islands#blueDotIcon',
+                  iconColor: selectedCode === p.code ? '#0ea5e9' : '#3b82f6',
+                  hideIconOnBalloonOpen: true,
+                  // Отключаем все всплывающие элементы
+                  openBalloonOnClick: false,
+                  openHintOnHover: false,
+                  hasBalloon: false,
+                  hasHint: false,
+                }}
+                onClick={() => {
+                  handlePlacemarkClick(p)
+                  onSelect?.({ code: p.code, label: p.label })
+                }}
+                modules={[]} // Убираем модули балуна и хинта
+              />
+            ))}
           </Clusterer>
         </Map>
       </YMaps>
       
-      {/* Отображение выбранного адреса */}
-      {selectedAddress && (
-        <div className="absolute bottom-0 left-0 right-0 bg-black/80 backdrop-blur-sm text-white px-4 py-3 text-sm rounded-b-xl">
-          <div className="text-xs text-white/60 mb-1">Выбранный пункт выдачи:</div>
-          <div className="font-medium">{selectedAddress}</div>
-        </div>
-      )}
+      {/* Убираем панель снизу - информация будет только в AddressEditor */}
     </div>
   )
 }
