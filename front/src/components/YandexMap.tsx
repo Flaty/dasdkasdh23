@@ -15,11 +15,22 @@ interface Point {
 
 interface Props {
   initialCenter: [number, number]
-  points: Point[]
-  onSelect: (point: Point) => void
+  points: {
+    coords: [number, number]
+    label: string
+    code: string
+  }[]
+  onSelect: (point: { label: string; code: string }) => void
+  onMapCenterChange?: (coords: [number, number]) => void // ← вот это
 }
 
-export default function YandexMap({ initialCenter, points, onSelect }: Props) {
+
+export default function YandexMap({
+  initialCenter,
+  points,
+  onSelect,
+  onMapCenterChange, // ← ОБЯЗАТЕЛЬНО сюда
+}: Props) {
   const mapRef = useRef<YMap | null>(null)
   const [selectedAddress, setSelectedAddress] = useState<string>("")
   const [selectedCode, setSelectedCode] = useState<string>("")
@@ -32,18 +43,20 @@ export default function YandexMap({ initialCenter, points, onSelect }: Props) {
     }
   }, [initialCenter])
 
-  const handlePlacemarkClick = (point: Point) => {
-    setSelectedAddress(point.label)
-    setSelectedCode(point.code)
-    onSelect(point)
-    
-    // Центрируем карту на выбранной точке
-    if (mapRef.current) {
-      mapRef.current.setCenter(point.coords, 15, {
-        duration: 300,
-      })
-    }
+const handlePlacemarkClick = (point: Point) => {
+  setSelectedAddress(point.label)
+  setSelectedCode(point.code)
+  onSelect(point)
+
+  if (mapRef.current) {
+    const coords = point.coords
+    mapRef.current.setCenter(coords, 15, { duration: 300 })
+
+    // вызываем коллбек, если передан
+    onMapCenterChange?.(coords)
   }
+}
+
 
   return (
     <div className="relative">
@@ -73,26 +86,30 @@ export default function YandexMap({ initialCenter, points, onSelect }: Props) {
               clusterBalloonPagerSize: 5,
             }}
           >
-            {points.map((p) => (
-              <Placemark
-                key={p.code}
-                geometry={p.coords}
-                properties={{
-                  balloonContent: p.label,
-                  hintContent: p.label,
-                }}
-                options={{
-                  preset: selectedCode === p.code ? 'islands#blueDotIcon' : 'islands#blueCircleDotIcon',
-                  iconColor: selectedCode === p.code ? '#0ea5e9' : '#3b82f6',
-                  hideIconOnBalloonOpen: false,
-                  iconLayout: 'default#image',
-                  iconImageSize: selectedCode === p.code ? [40, 40] : [30, 30],
-                  iconImageOffset: selectedCode === p.code ? [-20, -20] : [-15, -15],
-                }}
-                onClick={() => handlePlacemarkClick(p)}
-                modules={['geoObject.addon.balloon', 'geoObject.addon.hint']}
-              />
-            ))}
+{points.map((p) => (
+  <Placemark
+    key={p.code}
+    geometry={p.coords}
+    properties={{
+      balloonContent: p.label,
+      hintContent: p.label,
+    }}
+    options={{
+      preset: selectedCode === p.code ? 'islands#blueDotIcon' : 'islands#blueCircleDotIcon',
+      iconColor: selectedCode === p.code ? '#0ea5e9' : '#3b82f6',
+      hideIconOnBalloonOpen: false,
+      iconLayout: 'default#image',
+      iconImageSize: selectedCode === p.code ? [40, 40] : [30, 30],
+      iconImageOffset: selectedCode === p.code ? [-20, -20] : [-15, -15],
+    }}
+    onClick={() => {
+      handlePlacemarkClick(p)
+      onSelect?.({ code: p.code, label: p.label }) // ✅ передаём наружу выбранную точку
+    }}
+    modules={['geoObject.addon.balloon', 'geoObject.addon.hint']}
+  />
+))}
+
           </Clusterer>
         </Map>
       </YMaps>

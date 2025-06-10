@@ -1,5 +1,5 @@
-// src/hooks/useAddress.ts
 import { useEffect, useState } from "react"
+import { postAddress } from "../api/address" // 🆕 импорт
 
 export interface UserAddress {
   userId: number
@@ -26,8 +26,7 @@ const DEFAULT_ADDRESS: UserAddress = {
 }
 
 export function useAddress(userId: number | undefined) {
-  const [serverAddress, setServerAddress] = useState<UserAddress>(DEFAULT_ADDRESS)
-  const [localDraft, setLocalDraft] = useState<UserAddress>(DEFAULT_ADDRESS)
+  const [address, setAddress] = useState<UserAddress>(DEFAULT_ADDRESS)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -38,7 +37,7 @@ export function useAddress(userId: number | undefined) {
     fetch(`/api/user/address?userId=${userId}`)
       .then((res) => res.json())
       .then((data) => {
-        const clean = {
+        setAddress({
           userId,
           city: data.city || "",
           city_code: data.city_code?.toString() || "",
@@ -48,9 +47,7 @@ export function useAddress(userId: number | undefined) {
           deliveryType: data.deliveryType === "address" ? "address" : "pickup",
           pickupCode: data.pickupCode || "",
           pickupAddress: data.pickupAddress || "",
-        }
-        setServerAddress(clean)
-        setLocalDraft(clean)
+        })
         setLoading(false)
       })
       .catch((err) => {
@@ -60,30 +57,31 @@ export function useAddress(userId: number | undefined) {
       })
   }, [userId])
 
-  const saveAddress = async () => {
-    if (!localDraft || !userId) return false
-    try {
-      const res = await fetch("/api/user/address", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(localDraft),
-      })
-      if (!res.ok) throw new Error("Ошибка сохранения адреса")
-      setServerAddress(localDraft) // 🧠 теперь мы точно знаем, что это "сохранено"
-      return true
-    } catch (err) {
-      console.error("❌ Ошибка при сохранении адреса:", err)
-      setError("Ошибка при сохранении")
-      return false
-    }
+const saveAddress = async (data?: UserAddress) => {
+  const toSave = data || address
+  if (!toSave || !userId) return false
+  try {
+    const res = await fetch("/api/user/address", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(toSave),
+    })
+    if (!res.ok) throw new Error("Ошибка сохранения адреса")
+    return true
+  } catch (err) {
+    console.error("❌ Ошибка при сохранении адреса:", err)
+    setError("Ошибка при сохранении")
+    return false
   }
+}
+
+
 
   return {
-    address: localDraft,
-    setAddress: setLocalDraft,
+    address,
+    setAddress,
     loading,
     error,
     saveAddress,
-    serverAddress,
   }
 }

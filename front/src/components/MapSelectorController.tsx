@@ -24,6 +24,7 @@ interface Props {
   selectedPoint: Point | null
   onPointSelect: (point: Point) => void
   mapCenter?: [number, number]
+  onMapCenterChange?: (coords: [number, number]) => void // ✅ Добавлено
 }
 
 export default function MapSelectorController({
@@ -32,15 +33,14 @@ export default function MapSelectorController({
   selectedPoint,
   onPointSelect,
   mapCenter,
+  onMapCenterChange, // ✅ Добавлено
 }: Props) {
-  // Если нет города или ПВЗ - не рендерим
   if (!cityCode || !pickupPoints.length) return null
 
-  // Используем центр карты или берем координаты первого ПВЗ
   const center = mapCenter || (pickupPoints[0] ? [
     pickupPoints[0].location.latitude,
     pickupPoints[0].location.longitude
-  ] as [number, number] : [55.7558, 37.6173]) // дефолт - Москва
+  ] as [number, number] : [55.7558, 37.6173])
 
   const mapPoints = pickupPoints.map((p) => ({
     coords: [p.location.latitude, p.location.longitude] as [number, number],
@@ -54,6 +54,7 @@ export default function MapSelectorController({
         initialCenter={center}
         points={mapPoints}
         onSelect={onPointSelect}
+        onMapCenterChange={onMapCenterChange} // ✅ Проброс вниз
       />
     </Suspense>
   )
