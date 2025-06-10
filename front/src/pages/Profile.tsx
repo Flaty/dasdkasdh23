@@ -75,13 +75,13 @@ export default function Profile() {
       )}
 
       {/* 📍 Адрес */}
-      <AddressEditor
-        userId={user.id}
-        open={addressOpen}
-        onClose={() => setAddressOpen(false)}
-      />
-    </div>
-  )
+{addressOpen && (
+  <AddressEditor
+    userId={user.id}
+    open={addressOpen}
+    onClose={() => setAddressOpen(false)}
+  />
+)}
 
   function getSections() {
     return [

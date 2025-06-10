@@ -26,7 +26,8 @@ const DEFAULT_ADDRESS: UserAddress = {
 }
 
 export function useAddress(userId: number | undefined) {
-  const [address, setAddress] = useState<UserAddress>(DEFAULT_ADDRESS)
+  const [serverAddress, setServerAddress] = useState<UserAddress>(DEFAULT_ADDRESS)
+  const [localDraft, setLocalDraft] = useState<UserAddress>(DEFAULT_ADDRESS)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -37,7 +38,7 @@ export function useAddress(userId: number | undefined) {
     fetch(`/api/user/address?userId=${userId}`)
       .then((res) => res.json())
       .then((data) => {
-        setAddress({
+        const clean = {
           userId,
           city: data.city || "",
           city_code: data.city_code?.toString() || "",
@@ -47,7 +48,9 @@ export function useAddress(userId: number | undefined) {
           deliveryType: data.deliveryType === "address" ? "address" : "pickup",
           pickupCode: data.pickupCode || "",
           pickupAddress: data.pickupAddress || "",
-        })
+        }
+        setServerAddress(clean)
+        setLocalDraft(clean)
         setLoading(false)
       })
       .catch((err) => {
@@ -58,14 +61,15 @@ export function useAddress(userId: number | undefined) {
   }, [userId])
 
   const saveAddress = async () => {
-    if (!address || !userId) return false
+    if (!localDraft || !userId) return false
     try {
       const res = await fetch("/api/user/address", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(address),
+        body: JSON.stringify(localDraft),
       })
       if (!res.ok) throw new Error("Ошибка сохранения адреса")
+      setServerAddress(localDraft) // 🧠 теперь мы точно знаем, что это "сохранено"
       return true
     } catch (err) {
       console.error("❌ Ошибка при сохранении адреса:", err)
@@ -75,10 +79,11 @@ export function useAddress(userId: number | undefined) {
   }
 
   return {
-    address,
-    setAddress,
+    address: localDraft,
+    setAddress: setLocalDraft,
     loading,
     error,
     saveAddress,
+    serverAddress,
   }
 }

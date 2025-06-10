@@ -1,7 +1,8 @@
-// components/PickupMapView.tsx
 import { useEffect, Suspense, useMemo, useRef } from "react"
 import MapSkeleton from "./MapSkeleton"
 import { lazy } from "react"
+import { motion } from "framer-motion"
+
 const LazyYandexMap = lazy(() => import("./YandexMap"))
 
 interface Point {
@@ -58,8 +59,12 @@ export default function PickupMapView({
   if (!editing || !cityCode || !pickupPoints.length || !mapCenter) return null
 
   return (
-    <>
-      <Suspense fallback={<MapSkeleton />}>
+    <Suspense fallback={<MapSkeleton />}>
+      <motion.div
+        initial={{ opacity: 0, scale: 0.97 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ duration: 0.25 }}
+      >
         <LazyYandexMap
           initialCenter={mapCenter}
           points={pickupMapPoints}
@@ -74,29 +79,7 @@ export default function PickupMapView({
             }
           }}
         />
-      </Suspense>
-
-      {!selectedPoint && (
-        <div className="text-xs text-white/40 mt-2">
-          Нажми на метку на карте, чтобы выбрать ПВЗ
-        </div>
-      )}
-
-      {selectedPoint && (
-        <div className="mt-4 space-y-2">
-          <div className="text-sm text-white/70">
-            Выбран: {selectedPoint.label}
-          </div>
-          <button
-            onClick={() => {
-              setSelectedPoint(null)
-            }}
-            className="text-xs text-white/40 hover:underline"
-          >
-            🔄 Сбросить выбор
-          </button>
-        </div>
-      )}
-    </>
+      </motion.div>
+    </Suspense>
   )
 }

@@ -45,14 +45,24 @@ export default function AddressEditor({ userId, open, onClose }: Props) {
   const [suggestedCities, setSuggestedCities] = useState<SuggestedCity[]>([])
   const [cityTouched, setCityTouched] = useState(false)
   const [streetSuggestions, setStreetSuggestions] = useState<string[]>([])
-  const [citySelected, setCitySelected] = useState(false) // ✅ новое
+  const [citySelected, setCitySelected] = useState(false)
+const handleAddressSave = async () => {
+  const success = await saveAddress()
+  if (success) {
+    onClose()
+    setEditingPickup(false)
+    setCitySelected(false)
+  }
+}
+ // ✅ используем, чтобы не триггерить карту до выбора
+
   const mapShouldRender = useRef(false)
   const initialMapCentered = useRef(false)
 
   useEffect(() => {
-    if (formData.city) {
-      setCityQuery(formData.city)
-    }
+    if (formData.city && formData.city_code) {
+  setCityQuery(formData.city)
+}
   }, [formData.city])
 
   useEffect(() => {
@@ -93,6 +103,7 @@ export default function AddressEditor({ userId, open, onClose }: Props) {
     return () => clearTimeout(timeout)
   }, [formData.city, formData.city_code])
 
+  // Запрашиваем ПВЗ только если город реально выбран
   useEffect(() => {
     if (!formData.city_code || formData.deliveryType !== "pickup") return
 
@@ -102,62 +113,23 @@ export default function AddressEditor({ userId, open, onClose }: Props) {
       .catch(() => setPickupPoints([]))
   }, [formData.city_code, formData.deliveryType])
 
-  useEffect(() => {
-    if (pickupPoints.length > 0 && !initialMapCentered.current) {
-      const first = pickupPoints[0].location
-      setMapCenter([first.latitude, first.longitude])
-      initialMapCentered.current = true
-    }
-  }, [pickupPoints])
-
-  useEffect(() => {
-    if (selectedPoint) {
-      const full = pickupPoints.find((p) => p.code === selectedPoint.code)
-      if (full) {
-        setMapCenter([full.location.latitude, full.location.longitude])
-        setFormData((prev) => ({
-          ...prev,
-          pickupCode: full.code,
-          pickupAddress: full.location.address,
-        }))
-      }
-    }
-  }, [selectedPoint])
-
-  useEffect(() => {
-    const street = formData.street.trim()
-    if (formData.deliveryType !== "address" || !formData.city_code || street.length < 2) {
-      setStreetSuggestions([])
-      return
-    }
-
-    const timeout = setTimeout(() => {
-      fetch(`/api/cdek/streets?city_code=${formData.city_code}&street=${encodeURIComponent(street)}`)
-        .then((res) => res.json())
-        .then((data) => {
-          setStreetSuggestions(data || [])
-        })
-        .catch(() => setStreetSuggestions([]))
-    }, 300)
-
-    return () => clearTimeout(timeout)
-  }, [formData.street, formData.city_code, formData.deliveryType])
-
-  const handleAddressSave = async () => {
-    await saveAddress()
-    setSelectedPoint(null)
-    onClose()
-    setEditingPickup(false)
-    setCitySelected(false)
-  }
-
-  if (!open) return null
-
- const showMap =
-  formData.deliveryType === "pickup" &&
-  editingPickup &&
-  formData.city_code &&
-  citySelected
+  // ✅ тут должна быть обработка выбора города из подсказки:
+const handleCitySelect = (suggested: SuggestedCity) => {
+  const name = `${suggested.city}, ${suggested.region}`
+  setFormData((prev) => ({
+    ...prev,
+    city: name,
+    city_code: suggested.code,
+    pickupAddress: "",
+    pickupCode: "",
+  }))
+  setCityQuery(name)
+  setCitySelected(true)
+  setEditingPickup(true)
+  setPickupPoints([])
+  setSelectedPoint(null)
+  setMapCenter(undefined)
+}
 
 
   return (
@@ -219,19 +191,10 @@ export default function AddressEditor({ userId, open, onClose }: Props) {
                 <button
                   key={item.code}
                   onClick={() => {
-                    setFormData((prev) => ({
-                      ...prev,
-                      city: `${item.city}, ${item.region}`,
-                      city_code: item.code.toString(),
-                      pickupCode: "",
-                      pickupAddress: "",
-                    }))
-                    initialMapCentered.current = false
-                    setCityQuery(`${item.city}, ${item.region}`)
-                    setSuggestedCities([])
-                    setEditingPickup(true)
-                    setCitySelected(true)
-                  }}
+  handleCitySelect(item)
+  setSuggestedCities([])
+}}
+
                   className="w-full text-left px-4 py-2 text-sm hover:bg-white/20 transition text-white"
                 >
                   {item.city}, {item.region}
@@ -266,18 +229,17 @@ export default function AddressEditor({ userId, open, onClose }: Props) {
         )}
 
         {/* ПВЗ карта */}
-        {showMap && (
+{editingPickup && citySelected && formData.city_code && (
         <MapSelectorController
-        cityCode={formData.city_code}
-        pickupPoints={pickupPoints} // 👈 ОБЯЗАТЕЛЬНО!
-        selectedPoint={selectedPoint}
-        setSelectedPoint={setSelectedPoint}
-        setMapCenter={setMapCenter}
-        mapCenter={mapCenter}
-        editing={editingPickup}
+          cityCode={formData.city_code}
+          pickupPoints={pickupPoints}
+          selectedPoint={selectedPoint}
+          setSelectedPoint={setSelectedPoint}
+          setMapCenter={setMapCenter}
+          mapCenter={mapCenter}
+          editing={editingPickup}
         />
-
-        )}
+      )}
 
         {/* Улица */}
         {formData.deliveryType === "address" && (
