@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react"
+import { useEffect, useRef, useState } from "react"
 import {
   YMaps,
   Map,
@@ -21,6 +21,8 @@ interface Props {
 
 export default function YandexMap({ initialCenter, points, onSelect }: Props) {
   const mapRef = useRef<YMap | null>(null)
+  const [selectedAddress, setSelectedAddress] = useState<string>("")
+  const [selectedCode, setSelectedCode] = useState<string>("")
 
   useEffect(() => {
     if (mapRef.current) {
@@ -30,38 +32,78 @@ export default function YandexMap({ initialCenter, points, onSelect }: Props) {
     }
   }, [initialCenter])
 
+  const handlePlacemarkClick = (point: Point) => {
+    setSelectedAddress(point.label)
+    setSelectedCode(point.code)
+    onSelect(point)
+    
+    // Центрируем карту на выбранной точке
+    if (mapRef.current) {
+      mapRef.current.setCenter(point.coords, 15, {
+        duration: 300,
+      })
+    }
+  }
+
   return (
-    <YMaps query={{ apikey: "e72cd4cd-5a96-48f0-bf1c-20be54500cf7" }}>
-      <Map
-        instanceRef={(ref) => (mapRef.current = ref)}
-        defaultState={{
-          center: initialCenter,
-          zoom: 13,
-        }}
-        width="100%"
-        height="300px"
-        options={{
-          suppressMapOpenBlock: true,
-          yandexMapDisablePoiInteractivity: true,
-        }}
-      >
-        <Clusterer
+    <div className="relative">
+      <YMaps query={{ apikey: "e72cd4cd-5a96-48f0-bf1c-20be54500cf7" }}>
+        <Map
+          instanceRef={(ref) => (mapRef.current = ref)}
+          defaultState={{
+            center: initialCenter,
+            zoom: 13,
+          }}
+          width="100%"
+          height="300px"
           options={{
-            preset: "islands#invertedBlueClusterIcons",
-            groupByCoordinates: false,
-            clusterDisableClickZoom: true,
+            suppressMapOpenBlock: true,
+            yandexMapDisablePoiInteractivity: true,
           }}
         >
-          {points.map((p) => (
-            <Placemark
-              key={p.code}
-              geometry={p.coords}
-              properties={{ balloonContent: p.label }}
-              onClick={() => onSelect(p)}
-            />
-          ))}
-        </Clusterer>
-      </Map>
-    </YMaps>
+          <Clusterer
+            options={{
+              preset: "islands#invertedBlueClusterIcons",
+              groupByCoordinates: false,
+              clusterDisableClickZoom: false,
+              clusterOpenBalloonOnClick: false,
+              clusterBalloonPanelMaxMapArea: 0,
+              clusterBalloonContentLayoutWidth: 300,
+              clusterBalloonContentLayoutHeight: 200,
+              clusterBalloonPagerSize: 5,
+            }}
+          >
+            {points.map((p) => (
+              <Placemark
+                key={p.code}
+                geometry={p.coords}
+                properties={{
+                  balloonContent: p.label,
+                  hintContent: p.label,
+                }}
+                options={{
+                  preset: selectedCode === p.code ? 'islands#blueDotIcon' : 'islands#blueCircleDotIcon',
+                  iconColor: selectedCode === p.code ? '#0ea5e9' : '#3b82f6',
+                  hideIconOnBalloonOpen: false,
+                  iconLayout: 'default#image',
+                  iconImageSize: selectedCode === p.code ? [40, 40] : [30, 30],
+                  iconImageOffset: selectedCode === p.code ? [-20, -20] : [-15, -15],
+                }}
+                onClick={() => handlePlacemarkClick(p)}
+                modules={['geoObject.addon.balloon', 'geoObject.addon.hint']}
+              />
+            ))}
+          </Clusterer>
+        </Map>
+      </YMaps>
+      
+      {/* Отображение выбранного адреса */}
+      {selectedAddress && (
+        <div className="absolute bottom-0 left-0 right-0 bg-black/80 backdrop-blur-sm text-white px-4 py-3 text-sm rounded-b-xl">
+          <div className="text-xs text-white/60 mb-1">Выбранный пункт выдачи:</div>
+          <div className="font-medium">{selectedAddress}</div>
+        </div>
+      )}
+    </div>
   )
 }

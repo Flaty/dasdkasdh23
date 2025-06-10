@@ -75,17 +75,20 @@ export default function Profile() {
       )}
 
       {/* 📍 Адрес */}
-{addressOpen && (
-  <AddressEditor
-    userId={user.id}
-    open={addressOpen}
-    onClose={() => setAddressOpen(false)}
-  />
-)}
+      {addressOpen && (
+        <AddressEditor
+          userId={user.id}
+          open={addressOpen}
+          onClose={() => setAddressOpen(false)}
+        />
+      )}
+    </div>
+  )
 
   function getSections() {
     return [
       <motion.div
+        key="last-order"
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.3 }}
@@ -97,6 +100,7 @@ export default function Profile() {
       </motion.div>,
 
       <motion.div
+        key="reward"
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.35 }}
@@ -125,6 +129,7 @@ export default function Profile() {
       </motion.div>,
 
       <motion.div
+        key="status"
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4 }}
@@ -143,6 +148,7 @@ export default function Profile() {
       </motion.div>,
 
       <motion.div
+        key="loyalty"
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.45 }}
@@ -153,6 +159,7 @@ export default function Profile() {
       </motion.div>,
 
       <motion.div
+        key="address"
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
@@ -164,6 +171,7 @@ export default function Profile() {
       </motion.div>,
 
       <motion.div
+        key="invite"
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.55 }}
@@ -177,6 +185,7 @@ export default function Profile() {
       </motion.div>,
 
       <motion.div
+        key="support"
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6 }}
