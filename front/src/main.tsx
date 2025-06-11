@@ -1,4 +1,5 @@
 import '@unocss/reset/tailwind.css';
+import './styles/globals.css'; // Наши глобальные стили
 import 'uno.css';
 import '@fontsource/inter';
 

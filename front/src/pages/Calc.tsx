@@ -1,69 +1,18 @@
 import { useState, useEffect } from "react"
-import { motion, AnimatePresence } from "framer-motion"
+import { ShoppingCartIcon } from "@heroicons/react/24/solid"
 import FloatingInput from "../components/FloatingInput"
+import PageHeader from "../components/PageHeader"
 import BottomSheetSelector from "../components/BottomSheetSelector"
+import { motion, AnimatePresence } from "framer-motion";
 import { getCnyRateWithFee } from "../utils/rate"
 import { getUserData } from "../utils/user"
 import { addToCart } from "../api/cart"
 import { createOrder } from "../api/createOrder"
 import { useCustomNavigate } from "../utils/useCustomNavigate"
 import { useToast } from "../components/ToastProvider"
-import { CalcSkeleton } from "../components/skeletons/CalcSkeleton"
-import { ShoppingBagIcon, TruckIcon, CubeIcon, TagIcon, LinkIcon, CurrencyYenIcon } from "@heroicons/react/24/outline"
+import { InteractiveButton } from "../components/ui/InteractiveButton"
+import { ShoppingBagIcon, TruckIcon, CubeIcon, TagIcon } from "@heroicons/react/24/outline"
 
-// Haptic feedback
-const hapticFeedback = (type: 'light' | 'medium' | 'heavy' = 'light') => {
-  if (typeof window !== 'undefined' && 'vibrate' in navigator) {
-    const patterns = { light: [10], medium: [15], heavy: [25] }
-    navigator.vibrate(patterns[type])
-  }
-}
-
-// Animation variants
-const containerVariants = {
-  hidden: { opacity: 0 },
-  visible: {
-    opacity: 1,
-    transition: {
-      staggerChildren: 0.1,
-      delayChildren: 0.1
-    }
-  }
-}
-
-const itemVariants = {
-  hidden: { opacity: 0, y: 20, scale: 0.95 },
-  visible: { 
-    opacity: 1, 
-    y: 0, 
-    scale: 1,
-    transition: {
-      type: "spring",
-      stiffness: 300,
-      damping: 24
-    }
-  }
-}
-
-const resultVariants = {
-  hidden: { opacity: 0, scale: 0.9, y: 20 },
-  visible: { 
-    opacity: 1, 
-    scale: 1, 
-    y: 0,
-    transition: {
-      type: "spring",
-      stiffness: 400,
-      damping: 25
-    }
-  },
-  exit: { 
-    opacity: 0, 
-    scale: 0.9, 
-    y: -10,
-    transition: { duration: 0.2 }
-  }
-}
 
 export default function Calc() {
   const [url, setUrl] = useState("")
@@ -76,16 +25,11 @@ export default function Calc() {
   const [lastCalcInput, setLastCalcInput] = useState<{ price: string; delivery: string } | null>(null)
   const [show, setShow] = useState(false)
   const [resultVisible, setResultVisible] = useState(false)
-  const [pageLoading, setPageLoading] = useState(true)
 
   const toast = useToast()
   const customNavigate = useCustomNavigate()
 
-  useEffect(() => {
-    setShow(true)
-    // Simulate initial loading
-    setTimeout(() => setPageLoading(false), 800)
-  }, [])
+  useEffect(() => setShow(true), [])
 
   function setResultWithFade(text: string) {
     setResult(text)
@@ -97,8 +41,6 @@ export default function Calc() {
     const currentInput = { price, delivery }
     if (!delivery) return setResultWithFade("Выберите способ доставки")
     if (lastCalcInput && lastCalcInput.price === price && lastCalcInput.delivery === delivery) return
-    
-    hapticFeedback('light')
     setLastCalcInput(currentInput)
     setResultVisible(false)
     setResult("")
@@ -134,7 +76,6 @@ export default function Calc() {
     }
 
     try {
-      hapticFeedback('medium')
       setSubmitting(true)
       await addToCart({ userId: user.id, link: url, category, shipping: delivery, price: Number(price) })
       toast("✅ Товар добавлен в корзину")
@@ -158,7 +99,6 @@ export default function Calc() {
     }
 
     try {
-      hapticFeedback('heavy')
       setSubmitting(true)
       const rawPoizonPrice = Number(price.replace(",", ".").trim())
       if (isNaN(rawPoizonPrice) || rawPoizonPrice <= 0) {
@@ -187,221 +127,136 @@ export default function Calc() {
     }
   }
 
-  if (pageLoading) return <CalcSkeleton />
+return (
+  <div className="relative min-h-screen bg-[#0a0a0a] text-white px-16px pt-[calc(env(safe-area-inset-top,0px)+16px)] overflow-hidden font-sans fade-in">
+    <div className="flex flex-col space-y-16px">
 
-  return (
-    <motion.div 
-      className="relative min-h-screen bg-[#0a0a0a] text-white px-4 pt-[calc(env(safe-area-inset-top,0px)+16px)] overflow-hidden font-sans"
-      initial="hidden"
-      animate="visible"
-      variants={containerVariants}
-    >
-      <div className="flex flex-col space-y-6">
-
-        {/* Заголовок */}
-        <motion.div 
-          className="flex flex-col gap-1"
-          variants={itemVariants}
-        >
-          <h1 className="text-ui-h1 leading-[32px]">Рассчитать стоимость</h1>
-          <p className="text-sm text-white/40">Узнай итоговую цену прямо сейчас</p>
-        </motion.div>
-
-        {/* ССЫЛКА */}
-        <motion.div 
-          className="flex flex-col gap-2"
-          variants={itemVariants}
-        >
-          <label className="text-xs font-medium text-white/40 uppercase tracking-wider flex items-center gap-2">
-            <LinkIcon className="w-4 h-4" />
-            Ссылка на товар
-          </label>
-          <motion.input
-            className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-white placeholder-white/30 text-sm outline-none ring-2 ring-transparent focus:ring-white/20 focus:border-white/30 transition-all duration-300"
-            placeholder="https://dw4.co/item/..."
-            value={url}
-            onInput={(e) => setUrl(e.currentTarget.value)}
-            whileFocus={{ 
-              scale: 1.01,
-              transition: { type: "spring", stiffness: 400, damping: 25 }
-            }}
-          />
-        </motion.div>
-
-        {/* КАТЕГОРИЯ */}
-        <motion.div 
-          className="flex flex-col gap-2"
-          variants={itemVariants}
-        >
-          <label className="text-xs font-medium text-white/40 uppercase tracking-wider flex items-center gap-2">
-            <TagIcon className="w-4 h-4" />
-            Категория товара
-          </label>
-          <motion.div
-            whileHover={{ scale: 1.01 }}
-            whileTap={{ scale: 0.99 }}
-          >
-            <BottomSheetSelector
-              title="Категория товара"
-              value={category}
-              setValue={setCategory}
-              placeholder="Выбери категорию"
-              options={[
-                { label: "🎽 Аксессуары", value: "accessories" },
-                { label: "👟 Обувь", value: "shoes" },
-                { label: "👕 Одежда", value: "clothes" },
-                { label: "📦 Другое", value: "other" },
-              ]}
-            />
-          </motion.div>
-        </motion.div>
-
-        {/* ДОСТАВКА */}
-        <motion.div 
-          className="flex flex-col gap-2"
-          variants={itemVariants}
-        >
-          <label className="text-xs font-medium text-white/40 uppercase tracking-wider flex items-center gap-2">
-            <TruckIcon className="w-4 h-4" />
-            Способ доставки
-          </label>
-          <motion.div
-            whileHover={{ scale: 1.01 }}
-            whileTap={{ scale: 0.99 }}
-          >
-            <BottomSheetSelector
-              title="Способ доставки"
-              value={delivery}
-              setValue={setDelivery}
-              placeholder="Выбери способ"
-              options={[
-                { label: "✈️ Авиа — 800₽", value: "air" },
-                { label: "🚚 Обычная — 400₽", value: "standard" },
-              ]}
-            />
-          </motion.div>
-        </motion.div>
-
-        {/* ЦЕНА */}
-        <motion.div 
-          className="flex flex-col gap-2"
-          variants={itemVariants}
-        >
-          <label className="text-xs font-medium text-white/40 uppercase tracking-wider flex items-center gap-2">
-            <CurrencyYenIcon className="w-4 h-4" />
-            Цена в юанях
-          </label>
-          <motion.input
-            className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-white placeholder-white/30 text-sm outline-none ring-2 ring-transparent focus:ring-white/20 focus:border-white/30 transition-all duration-300"
-            placeholder="Например: 499"
-            value={price}
-            onInput={(e) => setPrice(e.currentTarget.value)}
-            whileFocus={{ 
-              scale: 1.01,
-              transition: { type: "spring", stiffness: 400, damping: 25 }
-            }}
-          />
-        </motion.div>
-
-        {/* КНОПКА РАСЧЁТА */}
-        <motion.button
-          onClick={handleCalc}
-          disabled={loading}
-          className="min-h-[48px] rounded-2xl bg-white text-black font-semibold text-sm transition-all duration-300 disabled:opacity-50"
-          variants={itemVariants}
-          whileHover={{ 
-            scale: 1.02,
-            backgroundColor: "#f5f5f5",
-            transition: { type: "spring", stiffness: 400, damping: 25 }
-          }}
-          whileTap={{ scale: 0.98 }}
-        >
-          {loading ? (
-            <div className="flex items-center justify-center gap-2">
-              <motion.div
-                animate={{ rotate: 360 }}
-                transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-                className="w-4 h-4 border-2 border-black/30 border-t-black rounded-full"
-              />
-              Рассчитываем...
-            </div>
-          ) : (
-            "🧮 Рассчитать цену"
-          )}
-        </motion.button>
-
-        {/* РЕЗУЛЬТАТ */}
-        <AnimatePresence mode="wait">
-          {resultVisible && (
-            <motion.div
-              key="calc-result"
-              variants={resultVariants}
-              initial="hidden"
-              animate="visible"
-              exit="exit"
-              className="space-y-4"
-            >
-              <motion.div className="rounded-2xl bg-white/5 border border-white/10 px-4 py-4 text-white backdrop-blur-sm">
-                <motion.div 
-                  className="text-lg font-bold mb-2 flex items-center gap-2"
-                  initial={{ scale: 0.9 }}
-                  animate={{ scale: 1 }}
-                  transition={{ delay: 0.1 }}
-                >
-                  💰 {result.split("\n")[0].replace("Итог: ", "")}
-                </motion.div>
-
-                <motion.div 
-                  className="text-sm text-white/60 leading-relaxed whitespace-pre-line"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  transition={{ delay: 0.2 }}
-                >
-                  {result.split("\n").slice(1).join("\n")}
-                </motion.div>
-
-                <motion.div 
-                  className="pt-3 border-t border-white/10 text-xs text-white/40 flex items-center gap-2 mt-3"
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.3 }}
-                >
-                  <span className="text-green-400">✓</span>
-                  Всё готово — можешь оформить заказ
-                </motion.div>
-              </motion.div>
-
-              <motion.button
-                onClick={handleSubmit}
-                disabled={submitting}
-                className="w-full min-h-[48px] bg-gradient-to-r from-green-600/20 to-emerald-500/20 border border-green-400/30 text-white font-semibold text-sm rounded-2xl transition-all duration-300 hover:from-green-600/30 hover:to-emerald-500/30 disabled:opacity-50"
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.4 }}
-                whileHover={{ 
-                  scale: 1.02,
-                  boxShadow: "0 0 20px rgba(34, 197, 94, 0.2)"
-                }}
-                whileTap={{ scale: 0.98 }}
-              >
-                {submitting ? (
-                  <div className="flex items-center justify-center gap-2">
-                    <motion.div
-                      animate={{ rotate: 360 }}
-                      transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-                      className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full"
-                    />
-                    Отправка...
-                  </div>
-                ) : (
-                  "🚀 Оформить заказ"
-                )}
-              </motion.button>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
+      {/* Заголовок */}
+      <div className="flex flex-col gap-1 animate-fadeIn">
+        <h1 className="text-ui-h1 leading-[32px]">Рассчитать стоимость</h1>
+        <p className="text-sm text-white/40">Узнай итоговую цену прямо сейчас</p>
       </div>
-    </motion.div>
-  )
+
+      {/* ССЫЛКА */}
+      <div className="flex flex-col gap-1 animate-fadeIn duration-300 delay-75">
+        <label className="text-sm font-medium text-white/60">ССЫЛКА</label>
+        <input
+          className="w-full rounded-xl border border-white/10 bg-white/5 px-16px py-12px text-white placeholder-white/30 text-sm outline-none ring-2 ring-transparent focus:ring-white/10 transition-all duration-200 focus:shadow-white/10 focus:shadow-md"
+          placeholder="https://dw4.co/item/..."
+          value={url}
+          onInput={(e) => setUrl(e.currentTarget.value)}
+        />
+      </div>
+
+      {/* КАТЕГОРИЯ */}
+      <div className="flex flex-col gap-1 animate-fadeIn duration-300 delay-100">
+        <label className="text-sm font-medium text-white/60">КАТЕГОРИЯ</label>
+        <BottomSheetSelector
+          title="Категория товара"
+          value={category}
+          setValue={setCategory}
+          placeholder={<span className="text-white/30">Выбери категорию</span>}
+          className="rounded-xl border border-white/10 bg-white/5 px-16px py-12px text-sm text-white transition-all duration-200 hover:bg-white/10"
+          options={[
+            { label: (<><TagIcon className="w-4 h-4 mr-2 text-white/40" /> Аксессуары</>), value: "accessories" },
+            { label: (<><ShoppingBagIcon className="w-4 h-4 mr-2 text-white/40" /> Обувь</>), value: "shoes" },
+            { label: (<><CubeIcon className="w-4 h-4 mr-2 text-white/40" /> Одежда</>), value: "clothes" },
+            { label: (<><TruckIcon className="w-4 h-4 mr-2 text-white/40" /> Другое</>), value: "other" },
+          ]}
+        />
+      </div>
+
+      {/* ДОСТАВКА */}
+      <div className="flex flex-col gap-1 animate-fadeIn duration-300 delay-150">
+        <label className="text-sm font-medium text-white/60">СПОСОБ ДОСТАВКИ</label>
+        <BottomSheetSelector
+          title="Способ доставки"
+          value={delivery}
+          setValue={setDelivery}
+          placeholder={<span className="text-white/30">Выбери способ</span>}
+          className="rounded-xl border border-white/10 bg-white/5 px-16px py-12px text-sm text-white transition-all duration-200 hover:bg-white/10"
+          options={[
+            { label: (<><TruckIcon className="w-4 h-4 mr-2 text-white/40" /> Авиа — 800₽</>), value: "air" },
+            { label: (<><TruckIcon className="w-4 h-4 mr-2 text-white/40" /> Обычная — 400₽</>), value: "standard" },
+          ]}
+        />
+      </div>
+
+      {/* ЦЕНА */}
+      <div className="flex flex-col gap-1 animate-fadeIn duration-300 delay-200">
+        <label className="text-sm font-medium text-white/60">ЦЕНА</label>
+        <input
+          className="w-full rounded-xl border border-white/10 bg-white/5 px-16px py-12px text-white placeholder-white/30 text-sm outline-none ring-2 ring-transparent focus:ring-white/10 transition-all duration-200 focus:shadow-white/10 focus:shadow-md"
+          placeholder="Например: 499"
+          value={price}
+          onInput={(e) => setPrice(e.currentTarget.value)}
+        />
+      </div>
+
+      {/* КНОПКА РАСЧЁТА */}
+      <InteractiveButton
+        onClick={handleCalc}
+        disabled={loading}
+        className="min-h-[48px] rounded-xl bg-white text-black font-semibold text-sm transition-all duration-200 ease-out hover:scale-98 active:scale-95 animate-fadeIn delay-300"
+      >
+        {loading ? "Рассчитываем..." : "Рассчитать цену"}
+      </InteractiveButton>
+
+      {/* РЕЗУЛЬТАТ */}
+<AnimatePresence mode="wait">
+  {resultVisible && (
+    <>
+      <motion.div
+        key="calc-result"
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: 8 }}
+        transition={{ duration: 0.35, ease: "easeOut" }}
+        className="mt-3 rounded-xl bg-[#18181b] border border-white/10 px-4 py-3 text-white space-y-2 shadow-sm"
+      >
+        <div className="text-sm font-semibold">
+          Итог:{" "}
+          <span className="text-white/90 font-bold">
+            {result.split("\n")[0].replace("Итог: ", "")}
+          </span>
+        </div>
+
+        <div className="text-sm text-white/60 leading-tight whitespace-pre-line">
+          {result.split("\n").slice(1).join("\n")}
+        </div>
+
+        <div className="pt-2 border-t border-white/10 text-xs text-white/40 flex items-center gap-1">
+          <span className="text-white/40">ℹ️</span>
+          Всё готово — можешь оформить заказ
+        </div>
+      </motion.div>
+
+      <motion.div
+        key="submit-btn"
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: 4 }}
+        transition={{ duration: 0.3, ease: "easeOut" }}
+        className="pt-3"
+      >
+        <InteractiveButton
+          onClick={handleSubmit}
+          disabled={submitting}
+          className="w-full min-h-[44px] bg-white text-black font-semibold text-sm rounded-xl transition-all duration-200 ease-out hover:scale-98 active:scale-95"
+        >
+          {submitting ? "Отправка..." : "Оформить заказ"}
+        </InteractiveButton>
+      </motion.div>
+    </>
+  )}
+</AnimatePresence>
+
+
+    </div>
+  </div>
+)
+
+
+
+
 }

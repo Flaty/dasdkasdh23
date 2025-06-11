@@ -28,6 +28,7 @@ export default function PageWrapperSwipe({
   };
 
   return (
+  <div className="w-screen overflow-x-clip">
     <motion.div
       style={{ overscrollBehaviorY: "none" }}
       variants={variants}
@@ -37,11 +38,13 @@ export default function PageWrapperSwipe({
       transition={{ duration: 0.25 }}
       className={`min-h-screen ${
         scrollable
-          ? "overflow-auto overscroll-contain"
+          ? "overflow-y-auto overscroll-contain"
           : "overflow-visible overscroll-none"
       }`}
     >
       {children}
     </motion.div>
-  );
+  </div>
+)
+
 }

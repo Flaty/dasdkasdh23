@@ -3,10 +3,25 @@ import { defineConfig, presetWind } from 'unocss'
 
 export default defineConfig({
   presets: [presetWind()],
-  theme: {
+theme: {
     fontFamily: {
       sans: ['Satoshi', 'Inter', 'sans-serif'],
       mono: ['"JetBrains Mono"', 'monospace'],
+    },
+    colors: {
+      'bg': {
+        primary: '#0a0a0a',
+        card: '#1a1a1a',
+        input: '#1f1f1f',
+      },
+      'border': {
+        subtle: 'rgba(255, 255, 255, 0.1)',
+      },
+      'text': {
+        primary: '#ffffff',
+        secondary: 'rgba(255, 255, 255, 0.7)',
+        muted: 'rgba(255, 255, 255, 0.4)',
+      }
     },
     keyframes: {
       fadeIn: {
@@ -17,10 +32,15 @@ export default defineConfig({
         '0%': { backgroundPosition: '-200% 0' },
         '100%': { backgroundPosition: '200% 0' },
       },
+      'pulse-slow': {
+        '0%, 100%': { opacity: '1' },
+        '50%': { opacity: '0.8' },
+      }
     },
     animation: {
       fadeIn: 'fadeIn 0.35s ease-out',
-      shimmer: 'shimmer 3.5s infinite',
+      shimmer: 'shimmer 1.5s infinite ease-in-out',
+      'pulse-slow': 'pulse-slow 2s cubic-bezier(0.4, 0, 0.6, 1) infinite',
     },
   } as Record<string, any>,
   shortcuts: [

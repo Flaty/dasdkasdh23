@@ -69,13 +69,15 @@ export function ProfileCard({
   subtitle, 
   icon, 
   onClick,
-  className = "" 
+  className = "",
+  children
 }: {
   title: string
   subtitle?: string
   icon?: ReactNode
   onClick?: () => void
   className?: string
+  children?: ReactNode
 }) {
   return (
     <Card 
@@ -98,11 +100,17 @@ export function ProfileCard({
               {subtitle}
             </div>
           )}
+          {children && (
+            <div className="mt-3">
+              {children}
+            </div>
+          )}
         </div>
       </div>
     </Card>
   )
 }
+
 
 /**
  * Карточка заказа с предустановленными стилями  
