@@ -1,7 +1,7 @@
 // src/components/OrderDetails.tsx
 
-import { CheckIcon, ClockIcon } from 'lucide-react';
-import type { ProfileData } from '../hook/useProfile'; // Предполагаем, что тип заказа будет здесь
+import { CheckIcon, ClockIcon, MessageSquare } from 'lucide-react';
+import type { ProfileData } from '../hook/useProfile';
 
 // Определяем полный пайплайн статусов и их порядок
 const statusPipeline = [
@@ -36,12 +36,30 @@ export default function OrderDetails({ order }: OrderDetailsProps) {
   // Если статус 'rejected', показываем особое состояние
   if (order.status === 'rejected') {
     return (
-      <div className="text-center p-4">
-        <h3 className="text-lg font-bold text-red-400">Заказ отклонён</h3>
-        <p className="text-sm text-white/50 mt-2">
-          К сожалению, мы не смогли обработать ваш заказ. 
-          Пожалуйста, свяжитесь с поддержкой для уточнения деталей.
-        </p>
+      <div className="space-y-6">
+        <div className="text-center p-4">
+          <h3 className="text-lg font-bold text-red-400">Заказ отклонён</h3>
+          <p className="text-sm text-white/50 mt-2">
+            К сожалению, мы не смогли обработать ваш заказ. 
+            Пожалуйста, свяжитесь с поддержкой для уточнения деталей.
+          </p>
+        </div>
+        
+        {/* Кнопка поддержки для отклоненных заказов */}
+        <div className="px-2">
+          <a 
+            href="https://t.me/your_manager" 
+            target="_blank" 
+            rel="noopener noreferrer"
+            onClick={() => {
+              if (navigator.vibrate) navigator.vibrate(20);
+            }}
+            className="w-full flex items-center justify-center gap-2 text-sm font-medium text-white rounded-xl py-3 bg-red-500/20 border border-red-400/40 hover:bg-red-500/30 transition-colors"
+          >
+            <MessageSquare className="w-4 h-4" />
+            Узнать причину отклонения
+          </a>
+        </div>
       </div>
     );
   }
@@ -89,6 +107,23 @@ export default function OrderDetails({ order }: OrderDetailsProps) {
             </div>
           );
         })}
+      </div>
+
+      {/* --- Кнопка поддержки --- */}
+      <div className="mt-6 pt-4 border-t border-white/10">
+        <a 
+          href="https://t.me/your_manager" 
+          target="_blank" 
+          rel="noopener noreferrer"
+          onClick={() => {
+            if (navigator.vibrate) navigator.vibrate(20); // Haptic feedback
+          }}
+          className="w-full flex items-center justify-center gap-2 text-sm font-medium text-white rounded-xl py-3 bg-white/5 border border-white/10 hover:bg-white/10 transition-colors"
+        >
+          <MessageSquare className="w-4 h-4" />
+          Задать вопрос по заказу
+        </a>
+        <p className="text-xs text-white/40 text-center mt-2">Ответим в течение пары минут</p>
       </div>
     </div>
   );
