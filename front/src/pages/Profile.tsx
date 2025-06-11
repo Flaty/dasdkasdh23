@@ -2,56 +2,25 @@
 
 import { getUserData } from "../utils/user";
 import { useCustomNavigate } from "../utils/useCustomNavigate";
-import { motion } from "framer-motion";
-import { useRef, useState, type ReactNode } from "react";
+import { useRef, useState, useMemo, type ReactNode } from "react";
 import BottomSheet, { type BottomSheetHandle } from "../components/BottomSheet";
 import AddressEditor from "../components/AddressEditor";
-import { ProfileCard } from "../components/ui/Card";
-import ProfileSkeleton from "../components/ProfileSkeleton";
 import OrderDetails from "../components/OrderDetails";
+import { ProfileCard } from "../components/ui/Card";
 import { useProfile, type ProfileData } from "../hook/useProfile";
+import ProfileSkeleton from "../components/ProfileSkeleton";
 import { formatDistanceToNowStrict } from 'date-fns';
 import { ru } from 'date-fns/locale';
-
-// Импортируем все нужные иконки
-import { 
-  MessageSquareQuote, 
-  Award, 
-  Flame, 
-  ReceiptText, 
-  Gem, 
-  MapPin, 
-  Handshake, 
-  ChevronRightIcon,
-  Package,
-  Gift,
-  Trophy
-} from 'lucide-react';
+import { MessageSquareQuote, Gem, MapPin, Handshake, ChevronRightIcon, Package, Gift, Trophy, Award, Flame, ReceiptText } from 'lucide-react';
 
 // --- Хелперы ---
 
-// ✅ FIX: Обновленная функция для корректного отображения адреса с префиксами
 function formatAddressPreview(address?: { deliveryType?: string; street?: string; pickupAddress?: string }): string {
-  if (!address || (!address.street && !address.pickupAddress)) {
-    return "Нажмите, чтобы настроить";
-  }
-  
-  if (address.deliveryType === 'pickup' && address.pickupAddress) {
-    return `ПВЗ: ${address.pickupAddress}`;
-  }
-  
-  if (address.deliveryType === 'address' && address.street) {
-    return `По адресу: ${address.street}`;
-  }
-
-  // Фолбэк на случай, если данные неконсистентны, но мы все равно можем что-то показать
-  if (address.pickupAddress) {
-    return `ПВЗ: ${address.pickupAddress}`;
-  }
-  if (address.street) {
-    return `По адресу: ${address.street}`;
-  }
-
+  if (!address || (!address.street && !address.pickupAddress)) return "Нажмите, чтобы настроить";
+  if (address.deliveryType === 'pickup' && address.pickupAddress) return `ПВЗ: ${address.pickupAddress}`;
+  if (address.deliveryType === 'address' && address.street) return `По адресу: ${address.street}`;
+  if (address.pickupAddress) return `ПВЗ: ${address.pickupAddress}`;
+  if (address.street) return `По адресу: ${address.street}`;
   return "Адрес не указан";
 }
 
@@ -68,8 +37,7 @@ function formatDays(days: number): string {
 function formatRelativeTime(dateString?: string): string {
   if (!dateString) return '';
   try {
-    const date = new Date(dateString);
-    return formatDistanceToNowStrict(date, { addSuffix: true, locale: ru });
+    return formatDistanceToNowStrict(new Date(dateString), { addSuffix: true, locale: ru });
   } catch (e) {
     console.error("Date formatting error:", e);
     return '';
@@ -87,21 +55,39 @@ const achievementIcons: Record<string, ReactNode> = {
 export default function Profile() {
   const navigate = useCustomNavigate();
   const baseUser = getUserData();
-  const { data: profile, isLoading, isError, error } = useProfile();
+  const { data: rawProfile, isLoading, isError, error } = useProfile();
+
+  const profile = useMemo(() => {
+    if (!rawProfile) return null;
+    return {
+      ...rawProfile,
+      address: rawProfile.address || { deliveryType: 'pickup', street: '', pickupAddress: '' }
+    };
+  }, [rawProfile]);
 
   const supportRef = useRef<BottomSheetHandle>(null);
   const orderDetailsRef = useRef<BottomSheetHandle>(null);
-
-  const [orderDetailsOpen, setOrderDetailsOpen] = useState(false);
+  
   const [supportOpen, setSupportOpen] = useState(false);
   const [addressOpen, setAddressOpen] = useState(false);
+  const [orderDetailsOpen, setOrderDetailsOpen] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState<ProfileData['last_order']>(null);
-    const handleOrderClick = (order: ProfileData['last_order']) => {
+
+  const handleOrderClick = (order: ProfileData['last_order']) => {
     if (order) {
       setSelectedOrder(order);
       setOrderDetailsOpen(true);
     }
   };
+  
+  const handleCopyReferral = () => {
+    if (navigator.clipboard && profile?.referral_info.link) {
+      navigator.clipboard.writeText(profile.referral_info.link);
+      // ✅ Haptic Feedback: Успешное действие
+      if (navigator.vibrate) navigator.vibrate(50); 
+      alert('Ссылка для друга скопирована!');
+    }
+  }
 
   if (!baseUser) return null;
 
@@ -121,87 +107,72 @@ export default function Profile() {
 
   return (
     <div className="relative min-h-screen bg-[#0a0a0a] text-white px-4 pt-[calc(env(safe-area-inset-top,0px)+16px)] overflow-hidden max-w-screen-sm mx-auto no-scrollbar">
-      {/* Glow Auras */}
       <div id="glow-wrapper" className="absolute top-0 left-0 right-0 bottom-0 -z-10 pointer-events-none overflow-hidden">
         <div className="absolute top-[15%] left-[25%] w-[360px] h-[360px] rounded-full" style={{ backgroundColor: "transparent", boxShadow: "0 0 160px 80px rgba(147, 51, 234, 0.2)" }} />
         <div className="absolute bottom-[8%] right-[15%] w-[280px] h-[280px] rounded-full" style={{ backgroundColor: "transparent", boxShadow: "0 0 120px 60px rgba(59, 130, 246, 0.2)" }} />
       </div>
 
-      {/* User Info */}
       <div className="flex flex-col items-center gap-2 text-center mb-4 relative">
-        <motion.img initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.4 }} src={baseUser.photo_url || "https://placehold.co/96x96"} alt="avatar" className="w-24 h-24 rounded-full border border-white/10 shadow-lg" />
-        
+        <img src={baseUser.photo_url || "https://placehold.co/96x96"} alt="avatar" className="w-24 h-24 rounded-full border border-white/10 shadow-lg" />
         <button onClick={() => setSupportOpen(true)} className="absolute top-0 right-0 p-2 rounded-full text-white/40 hover:bg-white/10 hover:text-white transition-colors" aria-label="Поддержка">
           <MessageSquareQuote className="w-5 h-5" />
         </button>
-        
         <div className="text-xl font-semibold drop-shadow-md">{baseUser.first_name || "Имя"}</div>
         <div className="text-sm text-white/50">@{baseUser.username || "user"}</div>
         <div className="text-xs text-white/30">В экосистеме {formatDays(profile.days_in_ecosystem)}</div>
       </div>
 
-      {/* Sections */}
       <div className="flex flex-col gap-3 pb-20">
         {profile.last_order && (
-          <AnimatedCard delay={0.3}>
-            <ProfileCard 
-              title="Последний заказ" 
-              subtitle={formatRelativeTime(profile.last_order.created_at)} 
-              icon={<Package className="w-4 h-4 text-neutral-400" />}
-              onClick={() => handleOrderClick(profile.last_order)}
-            >
-              <div className="text-sm font-medium">{profile.last_order.name} — {profile.last_order.price} ₽</div>
-            </ProfileCard>
-          </AnimatedCard>
+          <ProfileCard 
+            title="Последний заказ" 
+            subtitle={formatRelativeTime(profile.last_order.created_at)} 
+            icon={<Package className="w-4 h-4 text-neutral-400" />}
+            onClick={() => handleOrderClick(profile.last_order)}
+          >
+            <div className="text-sm font-medium">{profile.last_order.category} — {profile.last_order.price} ₽</div>
+          </ProfileCard>
         )}
 
-        <AnimatedCard delay={0.35}>
-          <ProfileCard title="Награда за активность" subtitle="Ваши достижения в нашем сервисе" icon={<Gift className="w-4 h-4 text-neutral-400" />}>
-            <button onClick={() => navigate("/calc")} className="w-full rounded-full bg-white/10 hover:bg-white/20 transition text-sm text-white py-2.5 px-4 font-medium">
-              Сделать новый заказ
-            </button>
-            <div className="flex flex-wrap gap-2 mt-3">
-              {profile.achievements.map((ach) => (
-                <span key={ach.id} className={`flex items-center gap-1.5 text-xs px-3 py-1 rounded-full font-medium transition-all ${ach.is_completed ? 'border-green-400/30 bg-green-500/20 text-green-300' : 'border-white/20 bg-white/10 text-white/60'}`}>
-                  {profile.achievements.find(a => a.id === ach.id)?.icon ? <span>{profile.achievements.find(a => a.id === ach.id)?.icon}</span> : null}
-                  {ach.name}
-                </span>
-              ))}
-            </div>
-          </ProfileCard>
-        </AnimatedCard>
+        <ProfileCard title="Награда за активность" subtitle="Ваши достижения в нашем сервисе" icon={<Gift className="w-4 h-4 text-neutral-400" />}>
+          <button onClick={() => navigate("/calc")} className="w-full rounded-full bg-white/10 hover:bg-white/20 transition text-sm text-white py-2.5 px-4 font-medium">
+            Сделать новый заказ
+          </button>
+          <div className="flex flex-wrap gap-2 mt-3">
+            {profile.achievements.map((ach) => (
+              <span key={ach.id} className={`flex items-center gap-1.5 text-xs px-3 py-1 rounded-full font-medium transition-all ${ach.is_completed ? 'border-green-400/30 bg-green-500/20 text-green-300' : 'border-white/20 bg-white/10 text-white/60'}`}>
+                {achievementIcons[ach.id]}
+                {ach.name}
+              </span>
+            ))}
+          </div>
+        </ProfileCard>
 
-        <AnimatedCard delay={0.4}>
-          <ProfileCard title={`Статус: ${profile.loyalty_status.name}`}
-            subtitle={profile.loyalty_status.orders_to_next_status > 0 ? `До ${profile.loyalty_status.next_status_name} осталось ${profile.loyalty_status.orders_to_next_status} заказа(ов)` : "Вы достигли максимального статуса!"}
-            icon={<Trophy className="w-4 h-4 text-neutral-400" />}>
-            <div className="w-full h-2 rounded-full bg-white/10 overflow-hidden mt-2">
-              <motion.div className="h-full bg-indigo-400" initial={{ width: 0 }} animate={{ width: `${profile.loyalty_status.progress_percentage}%` }} transition={{ duration: 0.8, ease: "easeOut" }} />
-            </div>
-          </ProfileCard>
-        </AnimatedCard>
+        <ProfileCard title={`Статус: ${profile.loyalty_status.name}`}
+          subtitle={profile.loyalty_status.orders_to_next_status > 0 ? `До ${profile.loyalty_status.next_status_name} осталось ${profile.loyalty_status.orders_to_next_status} заказа(ов)` : "Вы достигли максимального статуса!"}
+          icon={<Trophy className="w-4 h-4 text-neutral-400" />}>
+          <div className="w-full h-2 rounded-full bg-white/10 overflow-hidden mt-2">
+            <div className="h-full bg-indigo-400" style={{ width: `${profile.loyalty_status.progress_percentage}%` }} />
+          </div>
+        </ProfileCard>
 
-        <AnimatedCard delay={0.45}>
-          <ProfileCard title="Лояльность" subtitle={profile.loyalty_status.perks.join(', ')} icon={<Gem className="w-4 h-4 text-neutral-400" />} />
-        </AnimatedCard>
+        <ProfileCard title="Лояльность" subtitle={profile.loyalty_status.perks.join(', ')} icon={<Gem className="w-4 h-4 text-neutral-400" />} />
 
-        <AnimatedCard delay={0.5}>
-          <ProfileCard title="Адрес доставки (СДЭК)" 
-            subtitle={formatAddressPreview(profile.address)} 
-            onClick={() => setAddressOpen(true)} 
-            icon={<MapPin className="w-4 h-4 text-neutral-400" />} />
-        </AnimatedCard>
+        <ProfileCard title="Адрес доставки (СДЭК)" 
+          subtitle={formatAddressPreview(profile.address)} 
+          onClick={() => {
+            if (navigator.vibrate) navigator.vibrate(20); // ✅ Haptic Feedback: легкий клик
+            setAddressOpen(true);
+          }} 
+          icon={<MapPin className="w-4 h-4 text-neutral-400" />} />
 
-        <AnimatedCard delay={0.55}>
-          <ProfileCard title="Пригласи друга" subtitle={`Получи ${profile.referral_info.bonus_per_friend} ₽ за заказ друга`}
-            onClick={() => { if (navigator.clipboard) { navigator.clipboard.writeText(profile.referral_info.link); alert('Ссылка для друга скопирована!'); } }}
-            icon={<Handshake className="w-4 h-4 text-neutral-400" />}>
-             <p className="text-xs text-white/50 mt-1 flex items-center">Нажми, чтобы скопировать ссылку <ChevronRightIcon className="w-3 h-3 ml-1" /></p>
-          </ProfileCard>
-        </AnimatedCard>
+        <ProfileCard title="Пригласи друга" subtitle={`Получи ${profile.referral_info.bonus_per_friend} ₽ за заказ друга`}
+          onClick={handleCopyReferral}
+          icon={<Handshake className="w-4 h-4 text-neutral-400" />}>
+           <p className="text-xs text-white/50 mt-1 flex items-center">Нажми, чтобы скопировать ссылку <ChevronRightIcon className="w-3 h-3 ml-1" /></p>
+        </ProfileCard>
       </div>
 
-      {/* Support BottomSheet */}
       <BottomSheet ref={supportRef} title="Поддержка" open={supportOpen} onClose={() => setSupportOpen(false)}>
         <div className="text-left space-y-5">
             <p className="text-sm text-white/70 leading-snug">
@@ -214,10 +185,8 @@ export default function Profile() {
           </div>
       </BottomSheet>
 
-      {/* Address BottomSheet */}
       <AddressEditor userId={baseUser.id} open={addressOpen} onClose={() => setAddressOpen(false)} />
 
-      {/* Новый BottomSheet для деталей заказа */}
       {selectedOrder && (
         <BottomSheet
           ref={orderDetailsRef}
@@ -229,13 +198,5 @@ export default function Profile() {
         </BottomSheet>
       )}
     </div>
-  )
-}
-
-function AnimatedCard({ children, delay }: { children: React.ReactNode; delay: number }) {
-  return (
-    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35, delay: delay }}>
-      {children}
-    </motion.div>
-  )
+  );
 }

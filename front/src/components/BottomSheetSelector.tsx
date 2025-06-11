@@ -32,8 +32,8 @@ export default function BottomSheetSelector({
   const selected = options.find((o) => o.value === value);
 
   const handleSelect = (val: string) => {
+    if (navigator.vibrate) navigator.vibrate(20); // ✅ Легкий импульс при выборе
     setValue(val);
-    // ✅ Просим шторку закрыться, она закроется с анимацией
     sheetRef.current?.dismiss();
   };
 

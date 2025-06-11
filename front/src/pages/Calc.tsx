@@ -123,11 +123,13 @@ export default function Calc() {
         address: addressData, // ✅ Передаем объект с адресом
       });
 
+      if (navigator.vibrate) navigator.vibrate([100, 50, 100]); // ✅ Паттерн "успех"
       toast("✅ Заказ успешно оформлен!");
       dispatch({ type: 'SUBMIT_SUCCESS' });
       setTimeout(() => navigate("/profile"), 1500);
 
     } catch (err) {
+      if (navigator.vibrate) navigator.vibrate([100, 50, 100, 50, 100]); // ✅ Паттерн "ошибка"
       toast("❌ Ошибка при оформлении заказа");
       dispatch({ type: 'FIELD_CHANGE', payload: { status: 'calculated' } });
     }

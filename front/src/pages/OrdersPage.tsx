@@ -108,7 +108,10 @@ export default function OrdersPage() {
           <div className="bg-[#0f0f10] pt-1 pb-2">
             <div className="flex gap-2 text-sm font-medium">
               <button
-                onClick={() => setStatusFilter('active')}
+                onClick={() => {
+                if (navigator.vibrate) navigator.vibrate(20); // ✅ Легкий импульс
+                setStatusFilter('active');
+              }}
                 className={`px-4 py-1.5 rounded-full border border-white/10 transition-all duration-200 ${
                   statusFilter === 'active' ? "bg-white text-black shadow-sm" : "text-white/40 hover:bg-white/10"
                 }`}
@@ -152,14 +155,6 @@ export default function OrdersPage() {
                   category={order.shipping === "air" ? "✈️ Авиа доставка" : "🚚 Обычная доставка"}
                   price={order.price}
                   onClick={() => handleOrderClick(order)}
-                  className="fade-in"
-                  style={{
-                    animationDelay: `${i * 40}ms`,
-                    animationFillMode: "both",
-                    animationName: "fadeIn",
-                    animationDuration: "0.35s",
-                    animationTimingFunction: "ease-out",
-                  }}
                 />
               ))}
             </div>
