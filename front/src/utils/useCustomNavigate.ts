@@ -1,3 +1,5 @@
+// src/utils/useCustomNavigate.ts
+
 import { useNavigate, useLocation } from "react-router-dom";
 import { useSetTransitionDirection } from "./TransitionDirectionContext";
 
@@ -5,7 +7,7 @@ import { useSetTransitionDirection } from "./TransitionDirectionContext";
 const routeTransitions: Record<string, Record<string, "forward" | "backward">> = {
   "/profile": {
     "/calc": "forward",
-    "/cart": "forward",     // 👈 ДОБАВИЛ ЭТО
+    "/cart": "forward",
   },
   "/calc": {
     "/profile": "backward",
@@ -13,7 +15,7 @@ const routeTransitions: Record<string, Record<string, "forward" | "backward">> =
   },
   "/cart": {
     "/calc": "backward",
-    "/profile": "backward", // 👈 УЖЕ ЕСТЬ
+    "/profile": "backward",
   },
 };
 
@@ -23,23 +25,24 @@ export function useCustomNavigate() {
   const setDirection = useSetTransitionDirection();
 
   return (to: string | number, direction?: "forward" | "backward") => {
-    if (typeof to === "string") {
-      if (direction) {
-        setDirection(direction);
-      } else {
-        const from = location.pathname;
-        const map = routeTransitions[from];
-        if (map && map[to]) {
-          setDirection(map[to]);
-        } else {
-          setDirection("forward");
-        }
-      }
-
-      navigate(to);
-    } else if (typeof to === "number") {
+    // Обработка перехода назад по истории (navigate(-1))
+    if (typeof to === "number") {
       setDirection(direction || "backward");
       navigate(to);
+      return;
     }
+
+    // Обработка перехода по строке (пути)
+    if (direction) {
+      // Если направление задано вручную - используем его
+      setDirection(direction);
+    } else {
+      // Иначе - вычисляем по нашей карте
+      const from = location.pathname;
+      const definedDirection = routeTransitions[from]?.[to];
+      setDirection(definedDirection || "forward"); // По умолчанию - 'forward'
+    }
+
+    navigate(to);
   };
 }

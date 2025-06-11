@@ -1,87 +1,69 @@
-import { useEffect, useState } from "react"
-import { postAddress } from "../api/address" // 🆕 импорт
+// src/hook/useAddress.ts
+
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
 export interface UserAddress {
-  userId: number
-  city: string
-  city_code: string
-  street: string
-  name: string
-  phone: string
-  deliveryType: "pickup" | "address"
-  pickupCode?: string
-  pickupAddress?: string
+  userId: number;
+  city: string;
+  city_code: string;
+  street: string;
+  name: string;
+  phone: string;
+  deliveryType: "pickup" | "address";
+  pickupCode?: string;
+  pickupAddress?: string;
 }
 
 const DEFAULT_ADDRESS: UserAddress = {
   userId: 0,
-  city: "",
-  city_code: "",
-  street: "",
-  name: "",
-  phone: "",
-  deliveryType: "pickup",
-  pickupCode: "",
-  pickupAddress: "",
-}
+  city: "", city_code: "", street: "", name: "", phone: "",
+  deliveryType: "pickup", pickupCode: "", pickupAddress: "",
+};
 
-export function useAddress(userId: number | undefined) {
-  const [address, setAddress] = useState<UserAddress>(DEFAULT_ADDRESS)
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+const fetchAddress = async (userId: number): Promise<UserAddress> => {
+  const response = await fetch(`/api/user/address?userId=${userId}`);
+  if (!response.ok) throw new Error("Ошибка загрузки адреса");
+  const data = await response.json();
+  return data && data.userId ? data : { ...DEFAULT_ADDRESS, userId };
+};
 
-  useEffect(() => {
-    if (!userId) return
+const postAddress = async (addressData: UserAddress): Promise<any> => {
+  const response = await fetch("/api/user/address", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(addressData),
+  });
+  if (!response.ok) throw new Error("Ошибка сохранения адреса");
+  return response.json();
+};
 
-    setLoading(true)
-    fetch(`/api/user/address?userId=${userId}`)
-      .then((res) => res.json())
-      .then((data) => {
-        setAddress({
-          userId,
-          city: data.city || "",
-          city_code: data.city_code?.toString() || "",
-          street: data.street || "",
-          name: data.name || "",
-          phone: data.phone || "",
-          deliveryType: data.deliveryType === "address" ? "address" : "pickup",
-          pickupCode: data.pickupCode || "",
-          pickupAddress: data.pickupAddress || "",
-        })
-        setLoading(false)
-      })
-      .catch((err) => {
-        console.error("❌ Ошибка загрузки адреса:", err)
-        setError("Ошибка загрузки адреса")
-        setLoading(false)
-      })
-  }, [userId])
+export function useAddress(userId?: number) {
+  const queryClient = useQueryClient();
 
-const saveAddress = async (data?: UserAddress) => {
-  const toSave = data || address
-  if (!toSave || !userId) return false
-  try {
-    const res = await fetch("/api/user/address", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(toSave),
-    })
-    if (!res.ok) throw new Error("Ошибка сохранения адреса")
-    return true
-  } catch (err) {
-    console.error("❌ Ошибка при сохранении адреса:", err)
-    setError("Ошибка при сохранении")
-    return false
-  }
-}
+  const { data: addressData, isLoading: isLoadingAddress } = useQuery({
+    queryKey: ["address", userId],
+    queryFn: () => fetchAddress(userId!),
+    enabled: !!userId,
+    // ✅ Убираем staleTime: Infinity. Теперь данные будут считаться устаревшими сразу.
+    // refetchOnWindowFocus: true, // По умолчанию true, это хорошо. Данные обновятся при фокусе на вкладке.
+    initialData: { ...DEFAULT_ADDRESS, userId: userId || 0 },
+  });
 
-
+  const { mutateAsync: saveAddress, isPending: isSavingAddress } = useMutation({
+    mutationFn: postAddress,
+    onSuccess: (_, sentVariables) => {
+      queryClient.setQueryData(["address", sentVariables.userId], sentVariables);
+      queryClient.invalidateQueries({ queryKey: ['profile', sentVariables.userId] });
+    },
+    onError: (error) => {
+      console.error("Ошибка мутации адреса:", error);
+    },
+  });
 
   return {
-    address,
-    setAddress,
-    loading,
-    error,
+    addressData,
     saveAddress,
-  }
+    isLoadingAddress,
+    isSavingAddress,
+  };
 }

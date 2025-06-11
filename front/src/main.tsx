@@ -1,19 +1,27 @@
+// main.tsx
+
 import '@unocss/reset/tailwind.css';
-import './styles/globals.css'; // Наши глобальные стили
+import './styles/globals.css';
 import 'uno.css';
 import '@fontsource/inter';
 
 import React from 'react';
 import ReactDOM from 'react-dom/client';
-
 import App from './App';
-import { unstable_HistoryRouter as HistoryRouter } from 'react-router-dom';
+
+// ✅ Импортируем стандартный BrowserRouter
+import { BrowserRouter } from 'react-router-dom';
+
 import { setUserData } from './utils/user';
 import { TransitionDirectionProvider } from "./utils/TransitionDirectionContext";
-import { customHistory } from './utils/history';
 import { ToastProvider } from "./components/ToastProvider";
 
-// 🎯 ВСТАВКА FONT-FACE
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
+
+const queryClient = new QueryClient();
+
+// ... (твой код со стилями и юзером остается без изменений) ...
 const style = document.createElement('style');
 style.innerHTML = `
   @font-face {
@@ -31,11 +39,9 @@ style.innerHTML = `
 `;
 document.head.appendChild(style);
 
-// 🌙 Тема
 document.body.style.backgroundColor = "#0f0f10";
 document.body.style.overflowX = 'hidden';
 
-// Юзер
 const userParam = new URLSearchParams(window.location.search).get('user');
 if (userParam) {
   try {
@@ -50,12 +56,16 @@ if (userParam) {
 // 🚀 Рендер
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
-    <HistoryRouter history={customHistory}>
-      <ToastProvider>
-        <TransitionDirectionProvider>
-          <App />
-        </TransitionDirectionProvider>
-      </ToastProvider>
-    </HistoryRouter>
+    <QueryClientProvider client={queryClient}>
+      {/* ✅ Используем BrowserRouter вместо HistoryRouter */}
+      <BrowserRouter>
+        <ToastProvider>
+          <TransitionDirectionProvider>
+            <App />
+          </TransitionDirectionProvider>
+        </ToastProvider>
+      </BrowserRouter>
+      <ReactQueryDevtools initialIsOpen={false} />
+    </QueryClientProvider>
   </React.StrictMode>
 );

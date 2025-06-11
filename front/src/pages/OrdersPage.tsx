@@ -80,7 +80,7 @@ export default function OrdersPage() {
     );
 
 return (
-  <div className="relative min-h-screen bg-[#0a0a0a] text-white px-4 pt-[calc(env(safe-area-inset-top,0px)+16px)] overflow-hidden">
+  <div className="relative min-h-screen bg-[#0a0a0a] text-white px-4 pt-[calc(env(safe-area-inset-top,0px)+16px)] overflow-hidden no-scrollbar">
     <div className="flex flex-col gap-4">
       <h1 className="text-ui-h1">Мои заказы</h1>
 

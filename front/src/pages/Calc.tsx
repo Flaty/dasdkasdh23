@@ -1,262 +1,222 @@
-import { useState, useEffect } from "react"
-import { ShoppingCartIcon } from "@heroicons/react/24/solid"
-import FloatingInput from "../components/FloatingInput"
-import PageHeader from "../components/PageHeader"
-import BottomSheetSelector from "../components/BottomSheetSelector"
+// pages/Calc.tsx
+
+import { useReducer, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { getCnyRateWithFee } from "../utils/rate"
-import { getUserData } from "../utils/user"
-import { addToCart } from "../api/cart"
-import { createOrder } from "../api/createOrder"
-import { useCustomNavigate } from "../utils/useCustomNavigate"
-import { useToast } from "../components/ToastProvider"
-import { InteractiveButton } from "../components/ui/InteractiveButton"
-import { ShoppingBagIcon, TruckIcon, CubeIcon, TagIcon } from "@heroicons/react/24/outline"
 
+import { getUserData } from "../utils/user";
+import { createOrder } from "../api/createOrder";
+import { useCustomNavigate } from "../utils/useCustomNavigate";
+import { useToast } from "../components/ToastProvider";
+import { useRate } from "../hook/useRate";
 
+import { InteractiveButton } from "../components/ui/InteractiveButton";
+import BottomSheetSelector from "../components/BottomSheetSelector";
+import { ShoppingBagIcon, TruckIcon, CubeIcon, TagIcon } from "@heroicons/react/24/outline";
+import SpinnerIcon from "../components/SpinnerIcon";
+
+// --- Типы и Редьюсер для нашего калькулятора ---
+type CalcStatus = 'idle' | 'calculating' | 'calculated' | 'error' | 'submitting' | 'submitted';
+
+interface CalcState {
+  status: CalcStatus;
+  url: string;
+  price: string;
+  category: string;
+  delivery: string;
+  resultText: string;
+}
+
+type CalcAction =
+  | { type: 'FIELD_CHANGE'; payload: Partial<CalcState> }
+  | { type: 'CALCULATE' }
+  | { type: 'CALCULATION_SUCCESS'; payload: string }
+  | { type: 'CALCULATION_ERROR'; payload: string }
+  | { type: 'SUBMIT' }
+  | { type: 'SUBMIT_SUCCESS' };
+
+function calcReducer(state: CalcState, action: CalcAction): CalcState {
+  switch (action.type) {
+    case 'FIELD_CHANGE':
+      return { ...state, ...action.payload, status: 'idle', resultText: '' };
+    case 'CALCULATE':
+      return { ...state, status: 'calculating', resultText: '' };
+    case 'CALCULATION_SUCCESS':
+      return { ...state, status: 'calculated', resultText: action.payload };
+    case 'CALCULATION_ERROR':
+      return { ...state, status: 'error', resultText: action.payload };
+    case 'SUBMIT':
+      return { ...state, status: 'submitting' };
+    case 'SUBMIT_SUCCESS':
+      return { ...state, status: 'submitted' };
+    default:
+      return state;
+  }
+}
+
+// --- Чистая функция для логики расчета ---
+function calculateFinalPrice(priceCny: number, delivery: string, rate: number) {
+  const fixFee = 590;
+  const deliveryCost = delivery === "air" ? 800 : delivery === "standard" ? 400 : 0;
+  if (deliveryCost === 0) throw new Error("Выберите способ доставки");
+  
+  const total = Math.round(priceCny * rate + fixFee + deliveryCost);
+  return {
+      total,
+      details: `(курс: ${rate.toFixed(2)}₽, комиссия: ${fixFee}₽, доставка: ${deliveryCost}₽)`
+  };
+}
+
+// --- Компонент ---
 export default function Calc() {
-  const [url, setUrl] = useState("")
-  const [price, setPrice] = useState("")
-  const [category, setCategory] = useState("")
-  const [delivery, setDelivery] = useState("")
-  const [result, setResult] = useState("")
-  const [loading, setLoading] = useState(false)
-  const [submitting, setSubmitting] = useState(false)
-  const [lastCalcInput, setLastCalcInput] = useState<{ price: string; delivery: string } | null>(null)
-  const [show, setShow] = useState(false)
-  const [resultVisible, setResultVisible] = useState(false)
+  const initialState: CalcState = { status: 'idle', url: '', price: '', category: '', delivery: '', resultText: '' };
+  const [state, dispatch] = useReducer(calcReducer, initialState);
 
-  const toast = useToast()
-  const customNavigate = useCustomNavigate()
+  const { data: rateData, isLoading: isRateLoading, isError: isRateError } = useRate();
+  const toast = useToast();
+  const navigate = useCustomNavigate();
 
-  useEffect(() => setShow(true), [])
-
-  function setResultWithFade(text: string) {
-    setResult(text)
-    setLoading(false)
-    setTimeout(() => setResultVisible(true), 10)
-  }
-
-  async function handleCalc() {
-    const currentInput = { price, delivery }
-    if (!delivery) return setResultWithFade("Выберите способ доставки")
-    if (lastCalcInput && lastCalcInput.price === price && lastCalcInput.delivery === delivery) return
-    setLastCalcInput(currentInput)
-    setResultVisible(false)
-    setResult("")
-    setLoading(true)
-
-    try {
-      const rate = await getCnyRateWithFee()
-      const fixFee = 590
-      const deliveryCost = delivery === "air" ? 800 : delivery === "standard" ? 400 : 0
-      const priceCny = Number(price.replace(",", ".").trim())
-      if (!price) return setResultWithFade("Введите цену товара")
-      if (isNaN(priceCny) || priceCny <= 0) return setResultWithFade("Некорректная цена")
-
-      const total = Math.round(priceCny * rate + fixFee + deliveryCost)
-      setResult(`Итог: ${total} ₽\n(курс: ${rate}₽, фикс: ${fixFee}₽, доставка: ${deliveryCost}₽)`)
-    } catch {
-      setResult("Ошибка при расчёте")
-    }
-
-    setLoading(false)
-    setTimeout(() => setResultVisible(true), 10)
-  }
-
-  async function handleAddToCart() {
-    if (!url || !price || !category || !delivery) {
-      toast("❌ Пожалуйста, заполните все поля")
-      return
-    }
-    const user = getUserData()
-    if (!user) {
-      toast("❌ Пользователь не найден")
-      return
+  const handleCalc = () => {
+    dispatch({ type: 'CALCULATE' });
+    
+    if (isRateError || !rateData) {
+      return dispatch({ type: 'CALCULATION_ERROR', payload: "Ошибка: не удалось загрузить курс." });
     }
 
     try {
-      setSubmitting(true)
-      await addToCart({ userId: user.id, link: url, category, shipping: delivery, price: Number(price) })
-      toast("✅ Товар добавлен в корзину")
-    } catch (err) {
-      toast("❌ Ошибка при добавлении в корзину")
-      console.error(err)
-    } finally {
-      setSubmitting(false)
-    }
-  }
-
-  async function handleSubmit() {
-    if (!url || !price || !category || !delivery) {
-      toast("❌ Пожалуйста, заполните все поля")
-      return
-    }
-    const user = getUserData()
-    if (!user) {
-      toast("❌ Пользователь не найден")
-      return
-    }
-
-    try {
-      setSubmitting(true)
-      const rawPoizonPrice = Number(price.replace(",", ".").trim())
-      if (isNaN(rawPoizonPrice) || rawPoizonPrice <= 0) {
-        toast("❌ Некорректная цена")
-        return
+      const priceCny = Number(state.price.replace(",", ".").trim());
+      if (!state.price || isNaN(priceCny) || priceCny <= 0) {
+        throw new Error("Введите корректную цену товара в юанях.");
       }
+      const { total, details } = calculateFinalPrice(priceCny, state.delivery, rateData.rate);
+      dispatch({ type: 'CALCULATION_SUCCESS', payload: `Итог: ${total} ₽\n${details}` });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Неизвестная ошибка";
+      dispatch({ type: 'CALCULATION_ERROR', payload: message });
+    }
+  };
 
+  const handleSubmit = async () => {
+    const { url, price, category, delivery } = state;
+    const user = getUserData();
+
+    if (!isFormFilled || !user) {
+      return toast("❌ Сначала заполните все поля");
+    }
+
+    dispatch({ type: 'SUBMIT' });
+    try {
       await createOrder({
         userId: user.id,
-        username: user.username,
+        username: user.username || 'unknown',
         link: url,
         category,
         shipping: delivery,
-        rawPoizonPrice,
-      })
+        rawPoizonPrice: Number(price.replace(",", ".").trim()),
+      });
 
-      toast("✅ Заказ оформлен")
-      setTimeout(() => {
-        customNavigate("/profile", "forward")
-      }, 1800)
+      toast("✅ Заказ успешно оформлен!");
+      dispatch({ type: 'SUBMIT_SUCCESS' });
+      setTimeout(() => navigate("/profile"), 1500);
+
     } catch (err) {
-      toast("❌ Ошибка при отправке заказа")
-      console.error(err)
-    } finally {
-      setSubmitting(false)
+      toast("❌ Ошибка при оформлении заказа");
+      dispatch({ type: 'FIELD_CHANGE', payload: { status: 'calculated' } });
     }
-  }
+  };
 
-return (
-  <div className="relative min-h-screen bg-[#0a0a0a] text-white px-16px pt-[calc(env(safe-area-inset-top,0px)+16px)] overflow-hidden font-sans fade-in">
-    <div className="flex flex-col space-y-16px">
+  const isFormFilled = useMemo(() => !!(state.url && state.price && state.category && state.delivery), [state]);
+  const resultData = useMemo(() => {
+    if (!state.resultText) return null;
+    const [main, details] = state.resultText.split('\n');
+    return { main: main.replace("Итог: ", ""), details };
+  }, [state.resultText]);
 
-      {/* Заголовок */}
-      <div className="flex flex-col gap-1 animate-fadeIn">
-        <h1 className="text-ui-h1 leading-[32px]">Рассчитать стоимость</h1>
-        <p className="text-sm text-white/40">Узнай итоговую цену прямо сейчас</p>
-      </div>
-
-      {/* ССЫЛКА */}
-      <div className="flex flex-col gap-1 animate-fadeIn duration-300 delay-75">
-        <label className="text-sm font-medium text-white/60">ССЫЛКА</label>
-        <input
-          className="w-full rounded-xl border border-white/10 bg-white/5 px-16px py-12px text-white placeholder-white/30 text-sm outline-none ring-2 ring-transparent focus:ring-white/10 transition-all duration-200 focus:shadow-white/10 focus:shadow-md"
-          placeholder="https://dw4.co/item/..."
-          value={url}
-          onInput={(e) => setUrl(e.currentTarget.value)}
-        />
-      </div>
-
-      {/* КАТЕГОРИЯ */}
-      <div className="flex flex-col gap-1 animate-fadeIn duration-300 delay-100">
-        <label className="text-sm font-medium text-white/60">КАТЕГОРИЯ</label>
-        <BottomSheetSelector
-          title="Категория товара"
-          value={category}
-          setValue={setCategory}
-          placeholder={<span className="text-white/30">Выбери категорию</span>}
-          className="rounded-xl border border-white/10 bg-white/5 px-16px py-12px text-sm text-white transition-all duration-200 hover:bg-white/10"
-          options={[
-            { label: (<><TagIcon className="w-4 h-4 mr-2 text-white/40" /> Аксессуары</>), value: "accessories" },
-            { label: (<><ShoppingBagIcon className="w-4 h-4 mr-2 text-white/40" /> Обувь</>), value: "shoes" },
-            { label: (<><CubeIcon className="w-4 h-4 mr-2 text-white/40" /> Одежда</>), value: "clothes" },
-            { label: (<><TruckIcon className="w-4 h-4 mr-2 text-white/40" /> Другое</>), value: "other" },
-          ]}
-        />
-      </div>
-
-      {/* ДОСТАВКА */}
-      <div className="flex flex-col gap-1 animate-fadeIn duration-300 delay-150">
-        <label className="text-sm font-medium text-white/60">СПОСОБ ДОСТАВКИ</label>
-        <BottomSheetSelector
-          title="Способ доставки"
-          value={delivery}
-          setValue={setDelivery}
-          placeholder={<span className="text-white/30">Выбери способ</span>}
-          className="rounded-xl border border-white/10 bg-white/5 px-16px py-12px text-sm text-white transition-all duration-200 hover:bg-white/10"
-          options={[
-            { label: (<><TruckIcon className="w-4 h-4 mr-2 text-white/40" /> Авиа — 800₽</>), value: "air" },
-            { label: (<><TruckIcon className="w-4 h-4 mr-2 text-white/40" /> Обычная — 400₽</>), value: "standard" },
-          ]}
-        />
-      </div>
-
-      {/* ЦЕНА */}
-      <div className="flex flex-col gap-1 animate-fadeIn duration-300 delay-200">
-        <label className="text-sm font-medium text-white/60">ЦЕНА</label>
-        <input
-          className="w-full rounded-xl border border-white/10 bg-white/5 px-16px py-12px text-white placeholder-white/30 text-sm outline-none ring-2 ring-transparent focus:ring-white/10 transition-all duration-200 focus:shadow-white/10 focus:shadow-md"
-          placeholder="Например: 499"
-          value={price}
-          onInput={(e) => setPrice(e.currentTarget.value)}
-        />
-      </div>
-
-      {/* КНОПКА РАСЧЁТА */}
-      <InteractiveButton
-        onClick={handleCalc}
-        disabled={loading}
-        className="min-h-[48px] rounded-xl bg-white text-black font-semibold text-sm transition-all duration-200 ease-out hover:scale-98 active:scale-95 animate-fadeIn delay-300"
-      >
-        {loading ? "Рассчитываем..." : "Рассчитать цену"}
-      </InteractiveButton>
-
-      {/* РЕЗУЛЬТАТ */}
-<AnimatePresence mode="wait">
-  {resultVisible && (
-    <>
-      <motion.div
-        key="calc-result"
-        initial={{ opacity: 0, y: 12 }}
-        animate={{ opacity: 1, y: 0 }}
-        exit={{ opacity: 0, y: 8 }}
-        transition={{ duration: 0.35, ease: "easeOut" }}
-        className="mt-3 rounded-xl bg-[#18181b] border border-white/10 px-4 py-3 text-white space-y-2 shadow-sm"
-      >
-        <div className="text-sm font-semibold">
-          Итог:{" "}
-          <span className="text-white/90 font-bold">
-            {result.split("\n")[0].replace("Итог: ", "")}
-          </span>
+  return (
+    <div className="relative min-h-screen bg-[#0a0a0a] text-white px-4 pt-[calc(env(safe-area-inset-top,0px)+16px)] overflow-hidden font-sans">
+      <div className="flex flex-col space-y-4">
+        <div className="flex flex-col gap-1">
+          <h1 className="text-2xl font-bold">Рассчитать стоимость</h1>
+          <p className="text-sm text-white/40">Узнай итоговую цену прямо сейчас</p>
         </div>
 
-        <div className="text-sm text-white/60 leading-tight whitespace-pre-line">
-          {result.split("\n").slice(1).join("\n")}
+        <div className="flex flex-col gap-4">
+          <input
+            className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-white placeholder-white/30 text-sm outline-none ring-2 ring-transparent focus:ring-white/10 transition-all duration-200"
+            placeholder="https://dw4.co/item/..."
+            value={state.url}
+            onChange={(e) => dispatch({ type: 'FIELD_CHANGE', payload: { url: e.target.value } })}
+          />
+          <BottomSheetSelector
+            title="Категория товара" value={state.category} setValue={(v) => dispatch({ type: 'FIELD_CHANGE', payload: { category: v } })}
+            placeholder={<span className="text-white/30">Выбери категорию</span>}
+            className="rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white transition-colors hover:bg-white/10"
+            options={[
+              { label: (<div className="flex items-center gap-2"><TagIcon className="w-4 h-4 text-white/40" /> Аксессуары</div>), value: "accessories" },
+              { label: (<div className="flex items-center gap-2"><ShoppingBagIcon className="w-4 h-4 text-white/40" /> Обувь</div>), value: "shoes" },
+              { label: (<div className="flex items-center gap-2"><CubeIcon className="w-4 h-4 text-white/40" /> Одежда</div>), value: "clothes" },
+              { label: (<div className="flex items-center gap-2"><TruckIcon className="w-4 h-4 text-white/40" /> Другое</div>), value: "other" },
+            ]}
+          />
+          <BottomSheetSelector
+            title="Способ доставки" value={state.delivery} setValue={(v) => dispatch({ type: 'FIELD_CHANGE', payload: { delivery: v } })}
+            placeholder={<span className="text-white/30">Выбери способ</span>}
+            className="rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white transition-colors hover:bg-white/10"
+            options={[
+              { label: (<div className="flex items-center gap-2"><TruckIcon className="w-4 h-4 text-white/40" /> Авиа — 800₽</div>), value: "air" },
+              { label: (<div className="flex items-center gap-2"><TruckIcon className="w-4 h-4 text-white/40" /> Обычная — 400₽</div>), value: "standard" },
+            ]}
+          />
+          <input
+            className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-white placeholder-white/30 text-sm outline-none ring-2 ring-transparent focus:ring-white/10 transition-all duration-200"
+            placeholder="Например: 499 ¥"
+            value={state.price}
+            onChange={(e) => dispatch({ type: 'FIELD_CHANGE', payload: { price: e.target.value } })}
+            type="number"
+            inputMode="decimal"
+          />
         </div>
 
-        <div className="pt-2 border-t border-white/10 text-xs text-white/40 flex items-center gap-1">
-          <span className="text-white/40">ℹ️</span>
-          Всё готово — можешь оформить заказ
-        </div>
-      </motion.div>
+        <InteractiveButton onClick={handleCalc} disabled={state.status === 'calculating' || isRateLoading}
+          className="min-h-[48px] rounded-xl bg-white text-black font-semibold text-sm">
+          {isRateLoading ? "Загрузка курса..." : state.status === 'calculating' ? "Расчет..." : "Рассчитать цену"}
+        </InteractiveButton>
 
-      <motion.div
-        key="submit-btn"
-        initial={{ opacity: 0, y: 8 }}
-        animate={{ opacity: 1, y: 0 }}
-        exit={{ opacity: 0, y: 4 }}
-        transition={{ duration: 0.3, ease: "easeOut" }}
-        className="pt-3"
-      >
+        <AnimatePresence>
+          {state.resultText && (
+            <motion.div
+              initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
+              className={`mt-2 p-4 rounded-xl border ${state.status === 'error' ? 'bg-red-900/50 border-red-500/50 text-red-300' : 'bg-green-900/50 border-green-500/50 text-green-300'}`}
+            >
+              {state.status === 'calculated' && resultData ? (
+                  <div className="text-center space-y-1">
+                      <div className="text-sm text-white/60">Итоговая стоимость</div>
+                      <div className="text-2xl font-bold">{resultData.main}</div>
+                      <div className="text-xs text-white/40 pt-1">{resultData.details}</div>
+                  </div>
+              ) : (
+                <p className="text-white text-center whitespace-pre-line text-sm">{state.resultText}</p>
+              )}
+            </motion.div>
+          )}
+        </AnimatePresence>
+        
+<AnimatePresence>
+  {/* ✅ Показываем этот блок, если статус calculated ИЛИ submitting */}
+  {(state.status === 'calculated' || state.status === 'submitting') && isFormFilled && (
+     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
         <InteractiveButton
           onClick={handleSubmit}
-          disabled={submitting}
-          className="w-full min-h-[44px] bg-white text-black font-semibold text-sm rounded-xl transition-all duration-200 ease-out hover:scale-98 active:scale-95"
+          // ✅ Блокируем кнопку, только когда идет отправка
+          disabled={state.status === 'submitting'}
+          className="w-full" // Добавь сюда свои классы для кнопки
         >
-          {submitting ? "Отправка..." : "Оформить заказ"}
+          {/* ✅ Показываем спиннер, только когда идет отправка */}
+          {state.status === 'submitting' ? <SpinnerIcon className="w-5 h-5"/> : 'Оформить заказ'}
         </InteractiveButton>
-      </motion.div>
-    </>
+     </motion.div>
   )}
 </AnimatePresence>
-
-
+      </div>
     </div>
-  </div>
-)
-
-
-
-
+  );
 }

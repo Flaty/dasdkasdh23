@@ -2,6 +2,7 @@
 import dotenv from "dotenv"
 dotenv.config()
 
+import User from './models/User.js';
 import express from "express"
 import cors from "cors"
 import bodyParser from "body-parser"
@@ -183,7 +184,112 @@ app.get("/api/user/address", async (req, res) => {
     res.status(500).json({ error: "Ошибка сервера" })
   }
 })
+// ВСТАВЬ ЭТОТ БЛОК В СВОЙ index.js
 
+// === ПОЛУЧЕНИЕ ДАННЫХ ДЛЯ СТРАНИЦЫ ПРОФИЛЯ ===
+app.get("/api/profile", async (req, res) => {
+  const userId = parseInt(req.query.userId);
+  if (!userId) {
+    return res.status(400).json({ error: "userId required" });
+  }
+
+  try {
+    // Асинхронно запрашиваем всё, что нужно, одним махом
+    const [lastOrder, allOrders, userAddress, dbUser] = await Promise.all([
+      Order.findOne({ userId }).sort({ createdAt: -1 }),
+      Order.find({ userId }),
+      UserAddress.findOne({ userId }),
+      // Эта команда найдет юзера по userId, а если не найдет - создаст нового.
+      // { new: true, upsert: true } — это магия, которая делает "найти или создать".
+      User.findOneAndUpdate(
+        { userId }, 
+        { $setOnInsert: { userId } }, // Установить userId только при создании
+        { new: true, upsert: true }
+      )
+    ]);
+
+        // ✅ Считаем дни в экосистеме
+    const registrationDate = dbUser.createdAt;
+    const daysInEcosystem = Math.floor((new Date() - new Date(registrationDate)) / (1000 * 60 * 60 * 24));
+
+
+    // --- Считаем производные данные ---
+    const ordersCount = allOrders.length;
+    const totalSpent = allOrders.reduce((sum, order) => sum + (order.price || 0), 0);
+
+    // --- Логика статуса и лояльности ---
+    let loyalty_status;
+    if (ordersCount >= 10) { // Пример для Gold
+      loyalty_status = {
+        name: "Gold",
+        icon: "🥇",
+        next_status_name: null,
+        orders_to_next_status: 0,
+        progress_percentage: 100,
+        current_cashback_percent: 5,
+        perks: ["+5% кэшбэк", "Приоритетная поддержка", "Эксклюзивные предложения"]
+      };
+    } else if (ordersCount >= 5) { // Пример для Silver
+      loyalty_status = {
+        name: "Silver",
+        icon: "🥈",
+        next_status_name: "Gold",
+        orders_to_next_status: 10 - ordersCount,
+        progress_percentage: ((ordersCount - 5) / 5) * 100, // Прогресс от Silver до Gold
+        current_cashback_percent: 2,
+        perks: ["+2% кэшбэк", "Ранний доступ к скидкам"]
+      };
+    } else { // Bronze по умолчанию
+      loyalty_status = {
+        name: "Bronze",
+        icon: "🥉",
+        next_status_name: "Silver",
+        orders_to_next_status: 5 - ordersCount,
+        progress_percentage: (ordersCount / 5) * 100, // Прогресс от Bronze до Silver
+        current_cashback_percent: 0,
+        perks: ["Базовый доступ к заказам"]
+      };
+    }
+
+    // --- Логика ачивок ---
+    const achievements = [
+      { id: "first_purchase", name: "Первая покупка", icon: "🍆", is_completed: ordersCount > 0 },
+      { id: "five_orders", name: "5 заказов", icon: "🔥", is_completed: ordersCount >= 5 },
+      { id: "spent_30k", name: "30k+ потрачено", icon: "🧾", is_completed: totalSpent >= 30000 }
+    ];
+
+    // --- Собираем финальный объект ---
+    const profileData = {
+      days_in_ecosystem: daysInEcosystem, // ✅ Добавляем новое поле
+      loyalty_status: loyalty_status,
+      last_order: lastOrder ? {
+        id: lastOrder.id,
+        name: lastOrder.category, // Используем категорию как имя
+        price: lastOrder.price,
+        currency: "RUB",
+        created_at: lastOrder.createdAt
+      } : null,
+
+      achievements: achievements,
+      
+      // Добавляем адрес, если он есть
+      address_preview: userAddress ? userAddress.pickupAddress || userAddress.street || "Адрес не указан" : "Адрес не указан",
+      
+      // Добавляем инфу для рефералки (пока заглушка, можешь допилить)
+      referral_info: {
+        link: `https://t.me/your_bot?start=ref${userId}`,
+        is_active: true,
+        bonus_per_friend: 500
+      }
+    };
+
+    res.json(profileData);
+
+  } catch (err) {
+    console.error(`❌ Ошибка получения профиля для userId=${userId}:`, err);
+    res.status(500).json({ error: "Ошибка на сервере при сборке профиля" });
+  }
+});
 
 app.post("/api/order", async (req, res) => {
   const { userId, username, rawPoizonPrice, shipping, link, category } = req.body

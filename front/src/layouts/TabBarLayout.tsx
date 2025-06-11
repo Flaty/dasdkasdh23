@@ -8,8 +8,8 @@ interface Props {
 
 export default function TabBarLayout({ children }: Props) {
   return (
-    <div className="relative h-screen flex flex-col bg-[#fff]">
-      <main className="flex-1 overflow-auto">{children}</main>
+    <div className="relative h-screen flex flex-col bg-[#0a0a0a]">
+      <main className="flex-1 overflow-auto no-scrollbar">{children}</main>
       <TabBar />
     </div>
   )
