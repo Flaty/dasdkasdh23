@@ -3,19 +3,57 @@
 import { getUserData } from "../utils/user";
 import { useCustomNavigate } from "../utils/useCustomNavigate";
 import { motion } from "framer-motion";
-import { useRef, useState, type ReactNode } from "react"; // Добавили ReactNode
+import { useRef, useState, type ReactNode } from "react";
 import BottomSheet, { type BottomSheetHandle } from "../components/BottomSheet";
 import AddressEditor from "../components/AddressEditor";
 import { ProfileCard } from "../components/ui/Card";
-import { useProfile } from "../hook/useProfile";
 import ProfileSkeleton from "../components/ProfileSkeleton";
+import OrderDetails from "../components/OrderDetails";
+import { useProfile, type ProfileData } from "../hook/useProfile";
 import { formatDistanceToNowStrict } from 'date-fns';
 import { ru } from 'date-fns/locale';
 
-// ✅ Импортируем иконки из lucide-react
-import { MessageSquareQuote, Award, Flame, ReceiptText, Gem, MapPin, Handshake, ChevronRightIcon } from 'lucide-react';
+// Импортируем все нужные иконки
+import { 
+  MessageSquareQuote, 
+  Award, 
+  Flame, 
+  ReceiptText, 
+  Gem, 
+  MapPin, 
+  Handshake, 
+  ChevronRightIcon,
+  Package,
+  Gift,
+  Trophy
+} from 'lucide-react';
 
 // --- Хелперы ---
+
+// ✅ FIX: Обновленная функция для корректного отображения адреса с префиксами
+function formatAddressPreview(address?: { deliveryType?: string; street?: string; pickupAddress?: string }): string {
+  if (!address || (!address.street && !address.pickupAddress)) {
+    return "Нажмите, чтобы настроить";
+  }
+  
+  if (address.deliveryType === 'pickup' && address.pickupAddress) {
+    return `ПВЗ: ${address.pickupAddress}`;
+  }
+  
+  if (address.deliveryType === 'address' && address.street) {
+    return `По адресу: ${address.street}`;
+  }
+
+  // Фолбэк на случай, если данные неконсистентны, но мы все равно можем что-то показать
+  if (address.pickupAddress) {
+    return `ПВЗ: ${address.pickupAddress}`;
+  }
+  if (address.street) {
+    return `По адресу: ${address.street}`;
+  }
+
+  return "Адрес не указан";
+}
 
 function formatDays(days: number): string {
   if (days === 0) return "сегодня";
@@ -38,7 +76,6 @@ function formatRelativeTime(dateString?: string): string {
   }
 }
 
-// ✅ Маппинг ID ачивок на иконки
 const achievementIcons: Record<string, ReactNode> = {
   first_purchase: <Award className="w-3.5 h-3.5" />,
   five_orders: <Flame className="w-3.5 h-3.5" />,
@@ -53,8 +90,18 @@ export default function Profile() {
   const { data: profile, isLoading, isError, error } = useProfile();
 
   const supportRef = useRef<BottomSheetHandle>(null);
+  const orderDetailsRef = useRef<BottomSheetHandle>(null);
+
+  const [orderDetailsOpen, setOrderDetailsOpen] = useState(false);
   const [supportOpen, setSupportOpen] = useState(false);
   const [addressOpen, setAddressOpen] = useState(false);
+  const [selectedOrder, setSelectedOrder] = useState<ProfileData['last_order']>(null);
+    const handleOrderClick = (order: ProfileData['last_order']) => {
+    if (order) {
+      setSelectedOrder(order);
+      setOrderDetailsOpen(true);
+    }
+  };
 
   if (!baseUser) return null;
 
@@ -84,7 +131,6 @@ export default function Profile() {
       <div className="flex flex-col items-center gap-2 text-center mb-4 relative">
         <motion.img initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.4 }} src={baseUser.photo_url || "https://placehold.co/96x96"} alt="avatar" className="w-24 h-24 rounded-full border border-white/10 shadow-lg" />
         
-        {/* ✅ Новая кнопка поддержки */}
         <button onClick={() => setSupportOpen(true)} className="absolute top-0 right-0 p-2 rounded-full text-white/40 hover:bg-white/10 hover:text-white transition-colors" aria-label="Поддержка">
           <MessageSquareQuote className="w-5 h-5" />
         </button>
@@ -98,22 +144,26 @@ export default function Profile() {
       <div className="flex flex-col gap-3 pb-20">
         {profile.last_order && (
           <AnimatedCard delay={0.3}>
-            <ProfileCard title="Последний заказ" subtitle={formatRelativeTime(profile.last_order.created_at)} icon="👟"
-              onClick={() => { if (profile.last_order?.id) { navigate(`/orders/${profile.last_order.id}`); } }}>
+            <ProfileCard 
+              title="Последний заказ" 
+              subtitle={formatRelativeTime(profile.last_order.created_at)} 
+              icon={<Package className="w-4 h-4 text-neutral-400" />}
+              onClick={() => handleOrderClick(profile.last_order)}
+            >
               <div className="text-sm font-medium">{profile.last_order.name} — {profile.last_order.price} ₽</div>
             </ProfileCard>
           </AnimatedCard>
         )}
 
         <AnimatedCard delay={0.35}>
-          <ProfileCard title="Награда за активность" subtitle="Ваши достижения в нашем сервисе" icon="🎁">
+          <ProfileCard title="Награда за активность" subtitle="Ваши достижения в нашем сервисе" icon={<Gift className="w-4 h-4 text-neutral-400" />}>
             <button onClick={() => navigate("/calc")} className="w-full rounded-full bg-white/10 hover:bg-white/20 transition text-sm text-white py-2.5 px-4 font-medium">
               Сделать новый заказ
             </button>
             <div className="flex flex-wrap gap-2 mt-3">
               {profile.achievements.map((ach) => (
                 <span key={ach.id} className={`flex items-center gap-1.5 text-xs px-3 py-1 rounded-full font-medium transition-all ${ach.is_completed ? 'border-green-400/30 bg-green-500/20 text-green-300' : 'border-white/20 bg-white/10 text-white/60'}`}>
-                  {achievementIcons[ach.id] || ach.icon}
+                  {profile.achievements.find(a => a.id === ach.id)?.icon ? <span>{profile.achievements.find(a => a.id === ach.id)?.icon}</span> : null}
                   {ach.name}
                 </span>
               ))}
@@ -124,7 +174,7 @@ export default function Profile() {
         <AnimatedCard delay={0.4}>
           <ProfileCard title={`Статус: ${profile.loyalty_status.name}`}
             subtitle={profile.loyalty_status.orders_to_next_status > 0 ? `До ${profile.loyalty_status.next_status_name} осталось ${profile.loyalty_status.orders_to_next_status} заказа(ов)` : "Вы достигли максимального статуса!"}
-            icon={profile.loyalty_status.icon}>
+            icon={<Trophy className="w-4 h-4 text-neutral-400" />}>
             <div className="w-full h-2 rounded-full bg-white/10 overflow-hidden mt-2">
               <motion.div className="h-full bg-indigo-400" initial={{ width: 0 }} animate={{ width: `${profile.loyalty_status.progress_percentage}%` }} transition={{ duration: 0.8, ease: "easeOut" }} />
             </div>
@@ -132,17 +182,20 @@ export default function Profile() {
         </AnimatedCard>
 
         <AnimatedCard delay={0.45}>
-          <ProfileCard title="Лояльность" subtitle={profile.loyalty_status.perks.join(', ')} icon={<Gem className="w-4 h-4 text-cyan-400" />} />
+          <ProfileCard title="Лояльность" subtitle={profile.loyalty_status.perks.join(', ')} icon={<Gem className="w-4 h-4 text-neutral-400" />} />
         </AnimatedCard>
 
         <AnimatedCard delay={0.5}>
-          <ProfileCard title="Адрес доставки (СДЭК)" subtitle={profile.address_preview} onClick={() => setAddressOpen(true)} icon={<MapPin className="w-4 h-4 text-orange-400" />} />
+          <ProfileCard title="Адрес доставки (СДЭК)" 
+            subtitle={formatAddressPreview(profile.address)} 
+            onClick={() => setAddressOpen(true)} 
+            icon={<MapPin className="w-4 h-4 text-neutral-400" />} />
         </AnimatedCard>
 
         <AnimatedCard delay={0.55}>
           <ProfileCard title="Пригласи друга" subtitle={`Получи ${profile.referral_info.bonus_per_friend} ₽ за заказ друга`}
             onClick={() => { if (navigator.clipboard) { navigator.clipboard.writeText(profile.referral_info.link); alert('Ссылка для друга скопирована!'); } }}
-            icon={<Handshake className="w-4 h-4 text-yellow-400" />}>
+            icon={<Handshake className="w-4 h-4 text-neutral-400" />}>
              <p className="text-xs text-white/50 mt-1 flex items-center">Нажми, чтобы скопировать ссылку <ChevronRightIcon className="w-3 h-3 ml-1" /></p>
           </ProfileCard>
         </AnimatedCard>
@@ -163,6 +216,18 @@ export default function Profile() {
 
       {/* Address BottomSheet */}
       <AddressEditor userId={baseUser.id} open={addressOpen} onClose={() => setAddressOpen(false)} />
+
+      {/* Новый BottomSheet для деталей заказа */}
+      {selectedOrder && (
+        <BottomSheet
+          ref={orderDetailsRef}
+          title="Детали заказа"
+          open={orderDetailsOpen}
+          onClose={() => setOrderDetailsOpen(false)}
+        >
+          <OrderDetails order={selectedOrder} />
+        </BottomSheet>
+      )}
     </div>
   )
 }

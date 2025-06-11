@@ -1,4 +1,5 @@
-import mongoose from "mongoose"
+// models/CartItem.js
+import mongoose from "mongoose";
 
 const CartItemSchema = new mongoose.Schema({
   userId: Number,
@@ -7,7 +8,6 @@ const CartItemSchema = new mongoose.Schema({
   shipping: String,
   price: Number,
   createdAt: { type: Date, default: Date.now },
-})
+});
 
-const CartItem = mongoose.model("CartItem", CartItemSchema)
-export default CartItem
+export default mongoose.models.CartItem || mongoose.model("CartItem", CartItemSchema);

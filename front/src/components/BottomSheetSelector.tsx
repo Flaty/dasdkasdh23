@@ -4,7 +4,7 @@ import { useRef, useState, type ReactNode } from "react";
 import BottomSheet, { type BottomSheetHandle } from "./BottomSheet";
 
 export interface Option {
-  label: ReactNode; // Позволяем передавать иконки и прочее
+  label: ReactNode;
   value: string;
 }
 
@@ -14,7 +14,7 @@ interface Props {
   setValue: (val: string) => void;
   options: Option[];
   placeholder?: ReactNode;
-  className?: string; // Добавляем className для стилизации
+  className?: string;
 }
 
 export default function BottomSheetSelector({
@@ -33,12 +33,13 @@ export default function BottomSheetSelector({
 
   const handleSelect = (val: string) => {
     setValue(val);
-    // Просим шторку закрыться, она закроется с анимацией
+    // ✅ Просим шторку закрыться, она закроется с анимацией
     sheetRef.current?.dismiss();
   };
 
   return (
     <>
+      {/* Кнопка теперь просто открывает шторку */}
       <button
         onClick={() => setOpen(true)}
         className={`w-full text-left flex items-center justify-between ${className}`}
@@ -47,12 +48,12 @@ export default function BottomSheetSelector({
         <span className={`text-gray-400 transition-transform duration-300 ${open ? '-rotate-180' : ''}`}>⌄</span>
       </button>
 
-      {/* Передаем `open` и `onClose` в BottomSheet */}
+      {/* ✅ Передаем `open` и `onClose` в обновленный BottomSheet */}
       <BottomSheet
         ref={sheetRef}
         title={title}
         open={open}
-        onClose={() => setOpen(false)}
+        onClose={() => setOpen(false)} // Когда шторка закроется, обновляем состояние
       >
         <div className="flex flex-col gap-2">
             {options.map((item) => {

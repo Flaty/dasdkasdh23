@@ -3,19 +3,18 @@ import dotenv from "dotenv"
 dotenv.config()
 
 import User from './models/User.js';
+import Order from './models/Order.js';
+import UserAddress from "./models/UserAddress.js"
+import CartItem from "./models/CartItem.js"
+
 import express from "express"
 import cors from "cors"
 import bodyParser from "body-parser"
 import mongoose from "mongoose"
-import UserAddress from "./models/UserAddress.js"
-
-
 import fetch from "node-fetch"
-import { Telegraf } from "telegraf"
+import { Telegraf, Markup } from "telegraf"
 
 import cdekRoutes from "./routes/cdek.js"
-import CartItem from "./models/CartItem.js"
-
 
 // === НАСТРОЙКИ ===
 const BOT_TOKEN = process.env.BOT_TOKEN
@@ -31,27 +30,30 @@ const app = express()
 
 // === MONGODB ===
 mongoose
-  mongoose.connect("mongodb://127.0.0.1:27017/orders")
+  .connect("mongodb://127.0.0.1:27017/orders")
   .then(() => console.log("✅ MongoDB подключена"))
   .catch((err) => console.error("❌ Ошибка подключения к MongoDB", err))
 
-// === СХЕМА ЗАКАЗА ===
-const orderSchema = new mongoose.Schema({
-  id: String,
-  userId: Number,
-  username: String,
-  link: String,
-  category: String,
-  shipping: String,
-  price: Number,
-  status: {
-    type: String,
-    enum: ["pending", "approved", "rejected", "to-warehouse", "to-moscow"],
-    default: "pending",
-  },
-  createdAt: { type: String },
-})
-const Order = mongoose.model("Order", orderSchema)
+// === ХЕЛПЕРЫ ===
+function escapeMarkdown(text) {
+  if (typeof text !== 'string') return '';
+  const escapeChars = ['_', '*', '[', ']', '(', ')', '~', '`', '>', '#', '+', '-', '=', '|', '{', '}', '.', '!'];
+  return text.replace(new RegExp(`[${escapeChars.join('\\')}]`, 'g'), '\\$&');
+}
+
+const statusLabels = {
+  pending: "На проверке",
+  awaiting_payment: "Ожидает оплаты",
+  paid: "Оплачен, выкупается",
+  to_warehouse: "Едет на склад",
+  at_warehouse: "На складе",
+  to_moscow: "Едет в Москву",
+  in_moscow: "В Москве",
+  shipped_cdek: "Отправлен СДЭК",
+  ready_for_pickup: "Готов к выдаче",
+  completed: "Завершен",
+  rejected: "Отклонен",
+};
 
 // === MIDDLEWARE ===
 app.use(cors())
@@ -120,50 +122,27 @@ app.delete("/api/cart/:id", async (req, res) => {
 })
 
 // === ЗАКАЗ ===
-function calculateFinalPrice(rawPoizonPrice, shipping, rate = 92) {
+function calculateFinalPrice(rawPoizonPrice, shipping, rate = 14) {
   const fixedFee = 590
-  const deliveryFee = shipping === "Авиа" ? 800 : 400
+  const deliveryFee = shipping === "air" ? 800 : 400
   return Math.round(rawPoizonPrice * rate + fixedFee + deliveryFee)
 }
 
 // === СОХРАНЕНИЕ АДРЕСА ПОЛЬЗОВАТЕЛЯ ===
 app.post("/api/user/address", async (req, res) => {
   const {
-    userId,
-    name,
-    phone,
-    city,
-    city_code,
-    street,
-    deliveryType,
-    pickupCode,
-    pickupAddress,
+    userId, name, phone, city, city_code,
+    street, deliveryType, pickupCode, pickupAddress,
   } = req.body
 
   if (!userId) return res.status(400).json({ error: "userId обязателен" })
 
   try {
-    const existing = await UserAddress.findOne({ userId })
-
-    if (existing) {
-  await UserAddress.updateOne(
-    { userId },
-    { name, phone, city, city_code, street, deliveryType, pickupCode, pickupAddress }
-  )
-} else {
-  await new UserAddress({
-    userId,
-    name,
-    phone,
-    city,
-    city_code,
-    street,
-    deliveryType,
-    pickupCode,
-    pickupAddress,
-  }).save()
-}
-
+    await UserAddress.findOneAndUpdate(
+      { userId },
+      { name, phone, city, city_code, street, deliveryType, pickupCode, pickupAddress },
+      { upsert: true, new: true } // upsert: true создает документ, если он не найден
+    );
     res.json({ success: true })
   } catch (err) {
     console.error("❌ Ошибка сохранения адреса:", err)
@@ -184,107 +163,51 @@ app.get("/api/user/address", async (req, res) => {
     res.status(500).json({ error: "Ошибка сервера" })
   }
 })
-// ВСТАВЬ ЭТОТ БЛОК В СВОЙ index.js
 
 // === ПОЛУЧЕНИЕ ДАННЫХ ДЛЯ СТРАНИЦЫ ПРОФИЛЯ ===
 app.get("/api/profile", async (req, res) => {
   const userId = parseInt(req.query.userId);
-  if (!userId) {
-    return res.status(400).json({ error: "userId required" });
-  }
+  if (!userId) return res.status(400).json({ error: "userId required" });
 
   try {
-    // Асинхронно запрашиваем всё, что нужно, одним махом
     const [lastOrder, allOrders, userAddress, dbUser] = await Promise.all([
       Order.findOne({ userId }).sort({ createdAt: -1 }),
       Order.find({ userId }),
       UserAddress.findOne({ userId }),
-      // Эта команда найдет юзера по userId, а если не найдет - создаст нового.
-      // { new: true, upsert: true } — это магия, которая делает "найти или создать".
-      User.findOneAndUpdate(
-        { userId }, 
-        { $setOnInsert: { userId } }, // Установить userId только при создании
-        { new: true, upsert: true }
-      )
+      User.findOneAndUpdate({ userId }, { $setOnInsert: { userId } }, { new: true, upsert: true })
     ]);
 
-        // ✅ Считаем дни в экосистеме
     const registrationDate = dbUser.createdAt;
     const daysInEcosystem = Math.floor((new Date() - new Date(registrationDate)) / (1000 * 60 * 60 * 24));
 
-
-    // --- Считаем производные данные ---
     const ordersCount = allOrders.length;
     const totalSpent = allOrders.reduce((sum, order) => sum + (order.price || 0), 0);
 
-    // --- Логика статуса и лояльности ---
     let loyalty_status;
-    if (ordersCount >= 10) { // Пример для Gold
-      loyalty_status = {
-        name: "Gold",
-        icon: "🥇",
-        next_status_name: null,
-        orders_to_next_status: 0,
-        progress_percentage: 100,
-        current_cashback_percent: 5,
-        perks: ["+5% кэшбэк", "Приоритетная поддержка", "Эксклюзивные предложения"]
-      };
-    } else if (ordersCount >= 5) { // Пример для Silver
-      loyalty_status = {
-        name: "Silver",
-        icon: "🥈",
-        next_status_name: "Gold",
-        orders_to_next_status: 10 - ordersCount,
-        progress_percentage: ((ordersCount - 5) / 5) * 100, // Прогресс от Silver до Gold
-        current_cashback_percent: 2,
-        perks: ["+2% кэшбэк", "Ранний доступ к скидкам"]
-      };
-    } else { // Bronze по умолчанию
-      loyalty_status = {
-        name: "Bronze",
-        icon: "🥉",
-        next_status_name: "Silver",
-        orders_to_next_status: 5 - ordersCount,
-        progress_percentage: (ordersCount / 5) * 100, // Прогресс от Bronze до Silver
-        current_cashback_percent: 0,
-        perks: ["Базовый доступ к заказам"]
-      };
+    if (ordersCount >= 10) {
+      loyalty_status = { name: "Gold", icon: "🥇", next_status_name: null, orders_to_next_status: 0, progress_percentage: 100, current_cashback_percent: 5, perks: ["+5% кэшбэк", "Приоритетная поддержка", "Эксклюзивные предложения"] };
+    } else if (ordersCount >= 5) {
+      loyalty_status = { name: "Silver", icon: "🥈", next_status_name: "Gold", orders_to_next_status: 10 - ordersCount, progress_percentage: ((ordersCount - 5) / 5) * 100, current_cashback_percent: 2, perks: ["+2% кэшбэк", "Ранний доступ к скидкам"] };
+    } else {
+      loyalty_status = { name: "Bronze", icon: "🥉", next_status_name: "Silver", orders_to_next_status: 5 - ordersCount, progress_percentage: (ordersCount / 5) * 100, current_cashback_percent: 0, perks: ["Базовый доступ к заказам"] };
     }
 
-    // --- Логика ачивок ---
     const achievements = [
       { id: "first_purchase", name: "Первая покупка", icon: "🍆", is_completed: ordersCount > 0 },
       { id: "five_orders", name: "5 заказов", icon: "🔥", is_completed: ordersCount >= 5 },
       { id: "spent_30k", name: "30k+ потрачено", icon: "🧾", is_completed: totalSpent >= 30000 }
     ];
 
-    // --- Собираем финальный объект ---
     const profileData = {
-      days_in_ecosystem: daysInEcosystem, // ✅ Добавляем новое поле
+      days_in_ecosystem: daysInEcosystem,
       loyalty_status: loyalty_status,
-      last_order: lastOrder ? {
-        id: lastOrder.id,
-        name: lastOrder.category, // Используем категорию как имя
-        price: lastOrder.price,
-        currency: "RUB",
-        created_at: lastOrder.createdAt
-      } : null,
-
+      last_order: lastOrder ? { id: lastOrder.id, name: lastOrder.category, price: lastOrder.price, currency: "RUB",status: lastOrder.status, created_at: lastOrder.createdAt } : null,
       achievements: achievements,
-      
-      // Добавляем адрес, если он есть
-      address_preview: userAddress ? userAddress.pickupAddress || userAddress.street || "Адрес не указан" : "Адрес не указан",
-      
-      // Добавляем инфу для рефералки (пока заглушка, можешь допилить)
-      referral_info: {
-        link: `https://t.me/your_bot?start=ref${userId}`,
-        is_active: true,
-        bonus_per_friend: 500
-      }
+      address: userAddress,
+      referral_info: { link: `https://t.me/your_bot?start=ref${userId}`, is_active: true, bonus_per_friend: 500 }
     };
 
     res.json(profileData);
-
   } catch (err) {
     console.error(`❌ Ошибка получения профиля для userId=${userId}:`, err);
     res.status(500).json({ error: "Ошибка на сервере при сборке профиля" });
@@ -292,74 +215,121 @@ app.get("/api/profile", async (req, res) => {
 });
 
 app.post("/api/order", async (req, res) => {
-  const { userId, username, rawPoizonPrice, shipping, link, category } = req.body
+  const { userId, username, rawPoizonPrice, shipping, link, category, address } = req.body;
 
-  if (!rawPoizonPrice || !shipping || !link || !category) {
-    return res.status(400).json({ error: "Missing required fields" })
+  if (!rawPoizonPrice || !shipping || !link || !category || !address) {
+    return res.status(400).json({ error: "Missing required fields" });
   }
 
-  const finalPrice = calculateFinalPrice(rawPoizonPrice, shipping)
-  const id = Date.now().toString()
-  const createdAt = new Date().toISOString()
+  const finalPrice = calculateFinalPrice(rawPoizonPrice, shipping, cachedRate || 14);
 
   const order = new Order({
-    id,
-    userId,
-    username,
-    price: finalPrice,
-    category,
-    shipping,
-    link,
-    status: "pending",
-    createdAt,
-  })
+    id: Date.now().toString(),
+    userId, username, price: finalPrice, category, shipping, link, status: "pending",
+    deliveryType: address.deliveryType, city: address.city, street: address.street,
+    fullName: address.name, phone: address.phone, pickupCode: address.pickupCode,
+    pickupAddress: address.pickupAddress,
+  });
 
   try {
-    await order.save()
+    const savedOrder = await order.save(); // Сохраняем и получаем _id
+    const orderIdForCallback = savedOrder._id.toString(); // Используем реальный _id
+
+    const safeUsername = escapeMarkdown(username || 'unknown');
+    const safeLink = escapeMarkdown(link);
+    const safeCategory = escapeMarkdown(category);
+    const safeShipping = escapeMarkdown(shipping);
+    const safeCity = escapeMarkdown(address.city);
+    const safePickupAddress = escapeMarkdown(address.pickupAddress);
+    const safeStreet = escapeMarkdown(address.street);
+    const safeName = escapeMarkdown(address.name);
+    const safePhone = escapeMarkdown(address.phone);
+
+    let addressBlock = '';
+    if (address.deliveryType === 'pickup') {
+      addressBlock = `📍 *Доставка в ПВЗ:*\n` + `Город: ${safeCity}\n` + `Пункт: ${safePickupAddress}\n` + `Получатель: ${safeName}, ${safePhone}`;
+    } else {
+      addressBlock = `🚚 *Доставка курьером:*\n` + `Город: ${safeCity}\n` + `Адрес: ${safeStreet}\n` + `Получатель: ${safeName}, ${safePhone}`;
+    }
+
+    const messageText = `📦 *Новый заказ:*\n\n` + `👤 Пользователь: @${safeUsername}\n` + `📎 Ссылка: ${safeLink}\n` + `📂 Категория: ${safeCategory}\n` + `✈️ Доставка: ${escapeMarkdown(shipping)}\n` + `💰 Цена: ${finalPrice}₽\n` + `🆔 ID: ${escapeMarkdown(savedOrder.id)}\n\n` + `${addressBlock}\n\n` + `*Текущий статус: На проверке*`;
+
+    const keyboard = Markup.inlineKeyboard([
+        [Markup.button.callback('Ожидает оплаты', `status_awaiting_payment_${orderIdForCallback}`)],
+        [Markup.button.callback('Оплачен', `status_paid_${orderIdForCallback}`)],
+        [Markup.button.callback('Едет на склад', `status_to_warehouse_${orderIdForCallback}`)],
+        [Markup.button.callback('На складе', `status_at_warehouse_${orderIdForCallback}`)],
+        [Markup.button.callback('Едет в Москву', `status_to_moscow_${orderIdForCallback}`)],
+        [Markup.button.callback('В Москве', `status_in_moscow_${orderIdForCallback}`)],
+        [Markup.button.callback('Отправлен СДЭК', `status_shipped_cdek_${orderIdForCallback}`)],
+        [Markup.button.callback('Готов к выдаче', `status_ready_for_pickup_${orderIdForCallback}`)],
+        [
+            Markup.button.callback('✅ Завершить', `status_completed_${orderIdForCallback}`),
+            Markup.button.callback('❌ Отклонить', `status_rejected_${orderIdForCallback}`)
+        ]
+    ]);
 
     await bot.telegram.sendMessage(
       MANAGER_CHAT_ID,
-      `📦 Новый заказ:\n\n👤 Пользователь: @${username}\n📎 Ссылка: ${link}\n📂 Категория: ${category}\n🚚 Доставка: ${shipping}\n💰 Цена: ${finalPrice}₽\n🆔 ID: ${id}`,
+      messageText,
       {
-        reply_markup: {
-          inline_keyboard: [
-            [
-              { text: "✅ Принять", callback_data: `accept_${id}` },
-              { text: "❌ Отклонить", callback_data: `reject_${id}` },
-            ],
-          ],
-        },
+        parse_mode: 'MarkdownV2',
+        ...keyboard
       }
-    )
+    );
 
-    res.json({ success: true, id })
+    res.json({ success: true, id: savedOrder.id });
   } catch (err) {
-    console.error(err)
-    res.status(500).json({ success: false })
+    console.error(err);
+    res.status(500).json({ success: false, error: err.message || 'Внутренняя ошибка сервера' });
   }
-})
+});
 
 // === CALLBACK ===
 bot.on("callback_query", async (ctx) => {
-  const data = ctx.callbackQuery.data
-  const [action, id] = data.split("_")
+  const data = ctx.callbackQuery.data;
+  if (!data.startsWith('status_')) return ctx.answerCbQuery();
 
-  const order = await Order.findOne({ id })
-  if (!order) return ctx.answerCbQuery("❌ Заказ не найден")
+  // ✅ ФИКС ЗДЕСЬ: Правильно разбираем callback_data
+  const parts = data.split("_");
+  
+  // Последний элемент - это всегда ID
+  const orderId = parts[parts.length - 1]; 
+  
+  // Все, что между 'status' и ID - это наш статус
+  const newStatus = parts.slice(1, -1).join('_');
 
-  if (action === "accept") {
-    order.status = "approved"
-    await ctx.editMessageText(`✅ Заказ принят:\nID: ${id}\nПользователь: @${order.username}`)
-  } else if (action === "reject") {
-    order.status = "rejected"
-    await ctx.editMessageText(`❌ Заказ отклонён:\nID: ${id}\nПользователь: @${order.username}`)
+  try {
+    if (!mongoose.Types.ObjectId.isValid(orderId)) {
+        console.error(`Невалидный ObjectId: ${orderId} из callback_data: ${data}`);
+        return ctx.answerCbQuery('❗️ Ошибка: Неверный ID заказа');
+    }
+      
+    const order = await Order.findById(orderId);
+    if (!order) return ctx.answerCbQuery("❌ Заказ не найден в базе");
+
+    order.status = newStatus;
+    await order.save();
+
+    const originalText = ctx.callbackQuery.message.text;
+    const updatedText = originalText.replace(/\*Текущий статус:.*$/, `*Текущий статус: ${escapeMarkdown(statusLabels[newStatus] || newStatus)}*`);
+
+    // Проверяем, изменился ли текст, чтобы не отправлять лишний запрос
+    if (updatedText !== originalText) {
+        await ctx.editMessageText(updatedText, {
+            parse_mode: 'MarkdownV2',
+            ...ctx.callbackQuery.message.reply_markup
+        });
+    }
+
+    ctx.answerCbQuery(`✅ Статус: ${statusLabels[newStatus]}`);
+  } catch (err) {
+      console.error('Ошибка обработки колбэка:', err);
+      ctx.answerCbQuery('❗️ Ошибка на сервере');
   }
-
-  await order.save()
-  ctx.answerCbQuery()
-})
+});
 
 // === ЗАПУСК ===
-bot.launch()
-console.log("🤖 Бот запущен")
-app.listen(3001, () => console.log("🚀 Сервер на http://localhost:3001"))
+bot.launch();
+console.log("🤖 Бот запущен");
+app.listen(3001, () => console.log("🚀 Сервер на http://localhost:3001"));

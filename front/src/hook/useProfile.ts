@@ -18,9 +18,10 @@ export interface ProfileData {
   };
   last_order: {
     id: string;
-    name: string;
+    category: string;
     price: number;
     currency: string;
+    status: string;
     created_at: string;
   } | null;
   achievements: {
@@ -81,5 +82,7 @@ export function useProfile() {
     // Запрос не будет выполнен, пока `userId` не будет определен (true).
     // Это спасает от запроса `/api/profile?userId=undefined` при первом рендере.
     enabled: !!userId,
+    staleTime: 1000 * 30,
+    refetchInterval: 1000 * 60,
   });
 }

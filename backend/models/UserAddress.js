@@ -1,4 +1,5 @@
-import mongoose from "mongoose"
+// models/UserAddress.js
+import mongoose from "mongoose";
 
 const userAddressSchema = new mongoose.Schema({
   userId: { type: Number, required: true, unique: true },
@@ -14,6 +15,6 @@ const userAddressSchema = new mongoose.Schema({
   },
   pickupCode: String,
   pickupAddress: String,
-})
+});
 
-export default mongoose.model("UserAddress", userAddressSchema)
+export default mongoose.models.UserAddress || mongoose.model("UserAddress", userAddressSchema);

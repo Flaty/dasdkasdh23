@@ -1,7 +1,8 @@
-// AddressEditor.tsx
+// src/components/AddressEditor.tsx
 
 import { useEffect, useReducer, useMemo, useRef } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
+import { useQueryClient } from "@tanstack/react-query";
 import { MapPinIcon, TruckIcon, BuildingStorefrontIcon, PencilIcon } from "@heroicons/react/24/outline";
 
 import BottomSheet, { type BottomSheetHandle } from "./BottomSheet";
@@ -10,7 +11,6 @@ import { useAddress, type UserAddress } from "../hook/useAddress";
 import { useCitySuggestions, usePickupPoints, type SuggestedCity } from "../hook/useCdek";
 import SpinnerIcon from "./SpinnerIcon";
 
-// --- Типы и Редьюсер ---
 type EditorStatus = 'idle' | 'editing_city' | 'editing_pickup' | 'editing_courier' | 'saving';
 
 type EditorAction =
@@ -20,6 +20,7 @@ type EditorAction =
   | { type: 'CITY_INPUT_CHANGE'; payload: string }
   | { type: 'CITY_SELECTED'; payload: SuggestedCity }
   | { type: 'START_EDITING_PICKUP' }
+  | { type: 'START_EDITING_COURIER' }
   | { type: 'PVZ_SELECTED'; payload: { code: string; address: string } }
   | { type: 'CONFIRM_PVZ_SELECTION' }
   | { type: 'ATTEMPT_SAVE' }
@@ -47,10 +48,27 @@ function editorReducer(state: EditorState, action: EditorAction): EditorState {
 
     case 'SET_DELIVERY_TYPE': {
       const isPickup = action.payload === 'pickup';
+      const hasCity = !!state.formData.city_code;
+      
+      let newStatus: EditorStatus = 'editing_city';
+      if (hasCity) {
+          if (isPickup) {
+              newStatus = 'editing_pickup';
+          } else {
+              newStatus = state.formData.street ? 'idle' : 'editing_courier';
+          }
+      }
+
       return {
         ...state,
-        status: 'editing_city',
-        formData: { ...state.formData, deliveryType: action.payload, street: isPickup ? "" : state.formData.street },
+        status: newStatus,
+        formData: { 
+          ...state.formData, 
+          deliveryType: action.payload, 
+          street: isPickup ? "" : state.formData.street,
+          pickupCode: isPickup ? state.formData.pickupCode : "",
+          pickupAddress: isPickup ? state.formData.pickupAddress : "",
+        },
       };
     }
     
@@ -63,7 +81,7 @@ function editorReducer(state: EditorState, action: EditorAction): EditorState {
     case 'CITY_SELECTED':
       return {
         ...state,
-        status: 'editing_pickup',
+        status: state.formData.deliveryType === 'pickup' ? 'editing_pickup' : 'editing_courier',
         cityQuery: `${action.payload.city}, ${action.payload.region}`,
         selectedPointOnMap: null,
         formData: {
@@ -77,6 +95,9 @@ function editorReducer(state: EditorState, action: EditorAction): EditorState {
 
     case 'START_EDITING_PICKUP':
       return { ...state, status: 'editing_pickup', selectedPointOnMap: null };
+    
+    case 'START_EDITING_COURIER':
+        return { ...state, status: 'editing_courier' };
 
     case 'PVZ_SELECTED':
       return {
@@ -99,16 +120,10 @@ function editorReducer(state: EditorState, action: EditorAction): EditorState {
   }
 }
 
-// --- Сам Компонент ---
-interface Props {
-  userId: number;
-  open: boolean;
-  onClose: () => void;
-}
-
 export default function AddressEditor({ userId, open, onClose }: Props) {
   const { addressData, saveAddress, isSavingAddress, isLoadingAddress } = useAddress(userId);
   const sheetRef = useRef<BottomSheetHandle>(null);
+  const queryClient = useQueryClient();
   
   const [state, dispatch] = useReducer(editorReducer, {
     status: 'idle',
@@ -119,8 +134,10 @@ export default function AddressEditor({ userId, open, onClose }: Props) {
   });
 
   useEffect(() => {
-    dispatch({ type: 'RESET_TO_INITIAL', payload: addressData });
-  }, [addressData]);
+    if (open) {
+      dispatch({ type: 'RESET_TO_INITIAL', payload: addressData });
+    }
+  }, [open, addressData]);
   
   const { data: suggestedCities } = useCitySuggestions(state.cityQuery);
   const { data: pickupPoints } = usePickupPoints(state.formData.city_code);
@@ -130,11 +147,10 @@ export default function AddressEditor({ userId, open, onClose }: Props) {
     try {
       const ok = await saveAddress(state.formData);
       if (ok) {
-        // Просим шторку закрыться, чтобы сработала анимация
+        await queryClient.invalidateQueries({ queryKey: ['profile'] });
         sheetRef.current?.dismiss(); 
       }
     } finally {
-      // Завершаем состояние сохранения независимо от результата
       dispatch({ type: 'FINISH_SAVE' });
     }
   };
@@ -198,48 +214,63 @@ export default function AddressEditor({ userId, open, onClose }: Props) {
             )}
           </div>
           
-          <AnimatePresence mode="wait">
-            {state.status === 'idle' && deliveryType === "pickup" && state.formData.pickupAddress && (
-              <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.3, ease: "easeOut" }} className="relative">
-                <div className="relative p-4 rounded-2xl border border-white/10 bg-white/5 backdrop-blur-sm overflow-hidden">
-                  <div className="flex items-start gap-3">
-                    <div className="w-8 h-8 rounded-full bg-sky-500/20 flex items-center justify-center shrink-0 mt-0.5"><BuildingStorefrontIcon className="w-4 h-4 text-sky-400" /></div>
-                    <div className="flex-1 min-w-0 pr-16">
-                      <div className="text-xs text-white/40 mb-1">Выбранный пункт выдачи</div>
-                      <div className="text-sm text-white leading-relaxed">{state.formData.pickupAddress}</div>
+          {state.status === 'idle' && deliveryType === "pickup" && state.formData.pickupAddress && (
+            <div className="relative p-4 rounded-2xl border border-white/10 bg-white/5 backdrop-blur-sm overflow-hidden">
+              <div className="flex items-start gap-3">
+                <div className="w-8 h-8 rounded-full bg-sky-500/20 flex items-center justify-center shrink-0 mt-0.5"><BuildingStorefrontIcon className="w-4 h-4 text-sky-400" /></div>
+                <div className="flex-1 min-w-0 pr-16">
+                  <div className="text-xs text-white/40 mb-1">Выбранный пункт выдачи</div>
+                  <div className="text-sm text-white leading-relaxed">{state.formData.pickupAddress}</div>
+                </div>
+              </div>
+              <button onClick={() => dispatch({ type: 'START_EDITING_PICKUP' })} className="absolute top-4 right-4 p-2 rounded-xl bg-white/5 hover:bg-white/10 transition-all duration-200 group">
+                <PencilIcon className="w-4 h-4 text-white/60 group-hover:text-white transition-colors" />
+              </button>
+            </div>
+          )}
+
+          {state.status === 'idle' && deliveryType === "address" && state.formData.street && (
+            <div className="relative p-4 rounded-2xl border border-white/10 bg-white/5 backdrop-blur-sm overflow-hidden">
+              <div className="flex items-start gap-3">
+                <div className="w-8 h-8 rounded-full bg-sky-500/20 flex items-center justify-center shrink-0 mt-0.5"><TruckIcon className="w-4 h-4 text-sky-400" /></div>
+                <div className="flex-1 min-w-0 pr-16">
+                  <div className="text-xs text-white/40 mb-1">Выбранный адрес доставки</div>
+                  <div className="text-sm text-white leading-relaxed">{state.formData.street}</div>
+                </div>
+              </div>
+              <button onClick={() => dispatch({ type: 'START_EDITING_COURIER' })} className="absolute top-4 right-4 p-2 rounded-xl bg-white/5 hover:bg-white/10 transition-all duration-200 group">
+                <PencilIcon className="w-4 h-4 text-white/60 group-hover:text-white transition-colors" />
+              </button>
+            </div>
+          )}
+          
+          {/* FIX: Восстановлен блок с картой */}
+          {state.status === 'editing_pickup' && (
+            <div className="space-y-3">
+              <label className="text-xs font-medium text-white/40 uppercase tracking-wider">Выбери пункт выдачи на карте</label>
+              <div className="rounded-2xl overflow-hidden border border-white/10 bg-white/5">
+                <MapSelectorController cityCode={state.formData.city_code} pickupPoints={pickupPoints || []} selectedPoint={state.selectedPointOnMap}
+                  onPointSelect={(point) => dispatch({ type: 'PVZ_SELECTED', payload: point })} />
+              </div>
+               {state.selectedPointOnMap && (
+                 <div className="relative p-4 rounded-2xl border border-sky-400/30 bg-sky-500/10 backdrop-blur-sm">
+                    <div className="flex items-start gap-3">
+                        <div className="w-8 h-8 rounded-full bg-sky-500/30 flex items-center justify-center shrink-0 mt-0.5"><BuildingStorefrontIcon className="w-4 h-4 text-sky-400" /></div>
+                        <div className="flex-1 min-w-0">
+                            <div className="text-xs text-sky-300/70 mb-1">Новый пункт выдачи</div>
+                            <div className="text-sm text-white leading-relaxed">{state.formData.pickupAddress}</div>
+                        </div>
                     </div>
-                  </div>
-                  <button onClick={() => dispatch({ type: 'START_EDITING_PICKUP' })} className="absolute top-4 right-4 p-2 rounded-xl bg-white/5 hover:bg-white/10 transition-all duration-200 group">
-                    <PencilIcon className="w-4 h-4 text-white/60 group-hover:text-white transition-colors" />
-                  </button>
-                </div>
-              </motion.div>
-            )}
+                    <button onClick={() => dispatch({ type: 'CONFIRM_PVZ_SELECTION' })} className="absolute top-3 right-3 px-3 py-1 text-xs bg-sky-500/20 text-sky-300 rounded-full font-medium hover:bg-sky-500/30 transition">Подтвердить</button>
+                 </div>
+              )}
+            </div>
+          )}
 
-            {state.status === 'editing_pickup' && (
-              <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} transition={{ duration: 0.3, ease: "easeOut" }} className="space-y-3">
-                <label className="text-xs font-medium text-white/40 uppercase tracking-wider">Выбери пункт выдачи на карте</label>
-                <div className="rounded-2xl overflow-hidden border border-white/10 bg-white/5">
-                  <MapSelectorController cityCode={state.formData.city_code} pickupPoints={pickupPoints || []} selectedPoint={state.selectedPointOnMap}
-                    onPointSelect={(point) => dispatch({ type: 'PVZ_SELECTED', payload: point })} />
-                </div>
-                 {state.selectedPointOnMap && (
-                   <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="relative p-4 rounded-2xl border border-sky-400/30 bg-sky-500/10 backdrop-blur-sm">
-                      <div className="flex items-start gap-3">
-                          <div className="w-8 h-8 rounded-full bg-sky-500/30 flex items-center justify-center shrink-0 mt-0.5"><BuildingStorefrontIcon className="w-4 h-4 text-sky-400" /></div>
-                          <div className="flex-1 min-w-0">
-                              <div className="text-xs text-sky-300/70 mb-1">Новый пункт выдачи</div>
-                              <div className="text-sm text-white leading-relaxed">{state.formData.pickupAddress}</div>
-                          </div>
-                      </div>
-                      <button onClick={() => dispatch({ type: 'CONFIRM_PVZ_SELECTION' })} className="absolute top-3 right-3 px-3 py-1 text-xs bg-sky-500/20 text-sky-300 rounded-full font-medium hover:bg-sky-500/30 transition">Подтвердить</button>
-                   </motion.div>
-                )}
-              </motion.div>
-            )}
-
-            {deliveryType === "address" && (
-              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-2">
+          {/* FIX: Обновленная логика рендеринга поля ввода адреса */}
+          {deliveryType === "address" && state.status === 'editing_courier' && (
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+              <div className="space-y-2">
                 <label className="text-xs font-medium text-white/40 uppercase tracking-wider">Улица, дом</label>
                 <div className="relative">
                   <input value={state.formData.street} onChange={(e) => dispatch({ type: 'UPDATE_FORM_FIELD', payload: { street: e.target.value }})}
@@ -247,11 +278,11 @@ export default function AddressEditor({ userId, open, onClose }: Props) {
                     placeholder="Например, ул. Ленина, 15" />
                   <TruckIcon className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" />
                 </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
+              </div>
+            </motion.div>
+          )}
 
-          <div className="space-y-2">
+           <div className="space-y-2">
             <label className="text-xs font-medium text-white/40 uppercase tracking-wider">Имя получателя</label>
             <input value={state.formData.name} onChange={(e) => dispatch({ type: 'UPDATE_FORM_FIELD', payload: { name: e.target.value }})}
               className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-3 text-white placeholder:text-white/40 text-sm outline-none focus:border-white/30 focus:ring-2 focus:ring-white/10 transition-all duration-200"

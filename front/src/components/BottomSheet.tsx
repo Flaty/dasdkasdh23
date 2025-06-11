@@ -1,4 +1,4 @@
-// BottomSheet.tsx (iOS-like feel)
+// BottomSheet.tsx (iOS-like feel, V3 - Physics Tweak)
 
 import { AnimatePresence, motion, useDragControls, useMotionValue, animate } from "framer-motion";
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "react";
@@ -37,7 +37,6 @@ const BottomSheet = forwardRef<BottomSheetHandle, BottomSheetProps>(
       }
     }, [open]);
     
-    // ✅ Функция для анимации закрытия
     const dismiss = () => {
       if (navigator.vibrate) navigator.vibrate(10);
       setIsVisible(false);
@@ -53,7 +52,7 @@ const BottomSheet = forwardRef<BottomSheetHandle, BottomSheetProps>(
           return;
       }
 
-      // ✅ Вместо простого `dismiss()`, мы смотрим, как далеко и быстро потянули
+      // Вместо простого `dismiss()`, мы смотрим, как далеко и быстро потянули
       const closeThreshold = 100;
       if (info.offset.y > closeThreshold || info.velocity.y > 500) {
         // Если порог превышен - запускаем анимацию закрытия
@@ -63,9 +62,6 @@ const BottomSheet = forwardRef<BottomSheetHandle, BottomSheetProps>(
         animate(y, 0, { type: "spring", damping: 30, stiffness: 400 });
       }
     };
-    
-    // Убираем boxShadow, т.к. он был завязан на старую логику
-    // Можно будет вернуть, если очень нужно, но уже по-другому
 
     return createPortal(
       <AnimatePresence onExitComplete={onClose}>
@@ -82,31 +78,29 @@ const BottomSheet = forwardRef<BottomSheetHandle, BottomSheetProps>(
             />
             
             <motion.div
-              // ✅ Управляем перетаскиванием
               drag="y"
               dragListener={false}
               dragControls={dragControls}
-              dragConstraints={{ top: 0, bottom: 500 }} // Ограничиваем, чтобы не утащить в космос
-              dragElastic={{ top: 0, bottom: 0.5 }} // "Резиновый" эффект при выходе за пределы
+              dragConstraints={{ top: 0, bottom: 500 }}
+              dragElastic={{ top: 0, bottom: 0.5 }}
               onDragEnd={handleDragEnd}
 
-              // ✅ Анимация появления и исчезновения
               initial={{ y: "100%" }}
               animate={{ y: "0%" }}
               exit={{ y: "100%" }}
-              transition={{ type: "spring", damping: 40, stiffness: 400 }}
+              // ✅ ГЛАВНЫЙ ФИКС: Используем константу с правильными параметрами анимации.
+              transition={IOS_SPRING}
               
-              // ✅ Стиль теперь напрямую зависит от motion value 'y'
               style={{ y }} 
 
               className="relative z-[9999] w-full rounded-t-2xl bg-[#1c1c1f] pt-2 flex flex-col overflow-hidden shadow-2xl"
             >
+              {/* Эти div'ы нужны, чтобы фон был сплошным при "резиновом" перетаскивании за пределы экрана */}
               <div className="absolute inset-x-0 -top-[200vh] h-[200vh] bg-[#1c1c1f] z-[-1] rounded-t-2xl" />
               <div className="absolute inset-x-0 bottom-[-100px] h-[100px] bg-[#1c1c1f] z-[-1]" />
 
               <div className="w-full py-4 flex flex-col items-center gap-2 cursor-grab active:cursor-grabbing touch-none"
                 onPointerDown={(e) => {
-                   // ✅ Не даем тащить, если скролл не вверху
                    if (contentRef.current?.scrollTop === 0) {
                       dragControls.start(e);
                    }
