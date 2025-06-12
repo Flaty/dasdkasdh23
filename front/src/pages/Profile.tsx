@@ -15,6 +15,18 @@ import { MessageSquareQuote, Gem, MapPin, Handshake, ChevronRightIcon, Package, 
 
 // --- Хелперы ---
 
+function getCategoryLabel(category: string): string {
+  const categoryLabels: Record<string, string> = {
+    'accessories': 'Аксессуары',
+    'shoes': 'Обувь',
+    'clothes': 'Одежда',
+    'other': 'Другое',
+    // Добавьте другие категории если нужно
+  };
+  
+  return categoryLabels[category] || category;
+}
+
 function formatAddressPreview(address?: { deliveryType?: string; street?: string; pickupAddress?: string }): string {
   if (!address || (!address.street && !address.pickupAddress)) return "Нажмите, чтобы настроить";
   if (address.deliveryType === 'pickup' && address.pickupAddress) return `ПВЗ: ${address.pickupAddress}`;
@@ -123,16 +135,20 @@ export default function Profile() {
       </div>
 
       <div className="flex flex-col gap-3 pb-20">
-        {profile.last_order && (
-          <ProfileCard 
-            title="Последний заказ" 
-            subtitle={formatRelativeTime(profile.last_order.created_at)} 
-            icon={<Package className="w-4 h-4 text-neutral-400" />}
-            onClick={() => handleOrderClick(profile.last_order)}
-          >
-            <div className="text-sm font-medium">{profile.last_order.category} — {profile.last_order.price} ₽</div>
-          </ProfileCard>
-        )}
+{profile.last_order && (
+  <ProfileCard 
+    title="Последний заказ" 
+    subtitle={formatRelativeTime(profile.last_order.created_at)} 
+    icon={<Package className="w-4 h-4 text-neutral-400" />}
+    onClick={() => handleOrderClick(profile.last_order)}
+  >
+    {/* ✅ Возвращаем простую и понятную структуру */}
+    <div className="text-sm font-medium">
+      {/* Используем getCategoryLabel для человеко-читаемого названия */}
+      {getCategoryLabel(profile.last_order.category)} — {profile.last_order.price.toLocaleString('ru-RU')} ₽
+    </div>
+  </ProfileCard>
+)}
 
         <ProfileCard title="Награда за активность" subtitle="Ваши достижения в нашем сервисе" icon={<Gift className="w-4 h-4 text-neutral-400" />}>
           <button onClick={() => navigate("/calc")} className="w-full rounded-full bg-white/10 hover:bg-white/20 transition text-sm text-white py-2.5 px-4 font-medium">

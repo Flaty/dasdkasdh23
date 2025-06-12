@@ -229,3 +229,68 @@ body {
   transform: translateY(-2px);
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
 }
+
+/* Фикс для полного прилегания TabBar к низу */
+/* Позволяем контенту заходить под TabBar */
+.page-with-tabbar {
+  padding-bottom: 60px; /* Меньше чем высота TabBar (64px) */
+}
+
+/* Добавляем градиент снизу страниц для плавного перехода */
+.page-fade-bottom::after {
+  content: '';
+  position: fixed;
+  bottom: 64px; /* Высота TabBar */
+  left: 0;
+  right: 0;
+  height: 80px;
+  background: linear-gradient(
+    to top,
+    rgba(10, 10, 10, 0.9) 0%,
+    rgba(10, 10, 10, 0.4) 50%,
+    transparent 100%
+  );
+  pointer-events: none;
+  z-index: 40; /* Ниже TabBar (z-50) */
+}
+
+/* Эффект размытия для элементов под TabBar */
+.content-behind-tabbar {
+  position: relative;
+}
+
+.content-behind-tabbar > *:last-child {
+  margin-bottom: -20px; /* Позволяет последнему элементу заходить под TabBar */
+}
+
+/* Для списков и карточек */
+.list-fade-bottom {
+  mask-image: linear-gradient(
+    to bottom,
+    black 0%,
+    black calc(100% - 100px),
+    transparent 100%
+  );
+  -webkit-mask-image: linear-gradient(
+    to bottom,
+    black 0%,
+    black calc(100% - 100px),
+    transparent 100%
+  );
+}
+
+/* Анимация при скролле */
+@supports (backdrop-filter: blur(10px)) {
+  .tabbar-translucent {
+    background: rgba(0, 0, 0, 0.65) !important;
+    backdrop-filter: blur(24px) saturate(180%);
+    -webkit-backdrop-filter: blur(24px) saturate(180%);
+  }
+}
+
+/* Для браузеров без поддержки backdrop-filter */
+@supports not (backdrop-filter: blur(10px)) {
+  .tabbar-translucent {
+    background: rgba(0, 0, 0, 0.85) !important;
+  }
+}

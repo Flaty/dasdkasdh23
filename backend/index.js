@@ -201,7 +201,7 @@ app.get("/api/profile", async (req, res) => {
     const profileData = {
       days_in_ecosystem: daysInEcosystem,
       loyalty_status: loyalty_status,
-      last_order: lastOrder ? { id: lastOrder.id, name: lastOrder.category, price: lastOrder.price, currency: "RUB",status: lastOrder.status, created_at: lastOrder.createdAt } : null,
+      last_order: lastOrder ? { id: lastOrder.id, category: lastOrder.category, price: lastOrder.price, currency: "RUB",status: lastOrder.status, created_at: lastOrder.createdAt } : null,
       achievements: achievements,
       address: userAddress,
       referral_info: { link: `https://t.me/your_bot?start=ref${userId}`, is_active: true, bonus_per_friend: 500 }

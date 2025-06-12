@@ -26,7 +26,7 @@ export interface ProfileData {
   } | null;
   achievements: {
     id: string;
-    name: string;
+    category: string;
     icon: string;
     is_completed: boolean;
   }[];
