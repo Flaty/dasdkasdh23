@@ -2,7 +2,6 @@
 import { useLocation } from "react-router-dom";
 import { User, Package, Calculator } from "lucide-react";
 import { useCustomNavigate } from "../utils/useCustomNavigate";
-import { motion } from "framer-motion";
 
 const tabs = [
   { to: "/profile", label: "Профиль", icon: User },
@@ -22,21 +21,15 @@ export default function TabBar() {
         return (
           <button
             key={to}
-                        onClick={() => {
-              if (navigator.vibrate) navigator.vibrate(20); // ✅ Легкий импульс
+            onClick={() => {
+              // ✅ ВОТ И ФИКС: Если таб уже активен, ничего не делаем.
+              if (isActive) return;
+              
+              if (navigator.vibrate) navigator.vibrate(20);
               navigate(to, { replace: true });
             }}
             className="relative flex flex-col items-center gap-1 py-2 px-4 min-w-[80px] group"
           >
-            {/* Активный индикатор */}
-            {isActive && (
-              <motion.div
-                layoutId="activeTab"
-                className="absolute inset-0 bg-white/10 rounded-xl"
-                transition={{ type: "spring", duration: 0.3, bounce: 0.2 }}
-              />
-            )}
-            
             {/* Иконка и текст */}
             <Icon 
               size={20} 

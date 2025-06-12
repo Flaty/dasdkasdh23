@@ -21,7 +21,7 @@ export default defineConfig({
     headers: {
       "ngrok-skip-browser-warning": "true",
     },
-    allowedHosts: ["https://acc-hide-largely-par.trycloudflare.com"],
+    allowedHosts: [".trycloudflare.com"],
 
     // --- 🔽 ВОТ СЮДА ДОБАВЛЯЕМ ПРОКСИ ---
     proxy: {

@@ -284,6 +284,21 @@ app.post("/api/order", async (req, res) => {
     res.status(500).json({ success: false, error: err.message || 'Внутренняя ошибка сервера' });
   }
 });
+bot.command('start', (ctx) => {
+  const webAppUrl = process.env.WEBAPP_URL;
+
+  if (!webAppUrl) {
+    return ctx.reply('Извините, магазин временно недоступен.');
+  }
+
+  ctx.reply(
+    'Добро пожаловать! Нажмите кнопку ниже, чтобы открыть наш магазин.',
+    Markup.inlineKeyboard([
+      // Вот сама кнопка, которая запускает Web App
+      Markup.button.webApp('🛍️ Открыть магазин', webAppUrl)
+    ])
+  );
+});
 
 // === CALLBACK ===
 bot.on("callback_query", async (ctx) => {
@@ -330,6 +345,11 @@ bot.on("callback_query", async (ctx) => {
 });
 
 // === ЗАПУСК ===
-bot.launch();
-console.log("🤖 Бот запущен");
-app.listen(3001, () => console.log("🚀 Сервер на http://localhost:3001"));
+(async () => {
+  try {
+    // Просто запускаем backend без установки меню и бота
+    app.listen(3001, () => console.log("🚀 Сервер на http://localhost:3001"));
+  } catch (err) {
+    console.error("Ошибка запуска:", err);
+  }
+})();
