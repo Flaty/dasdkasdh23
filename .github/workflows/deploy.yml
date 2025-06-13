@@ -1,0 +1,22 @@
+# .github/workflows/deploy.yml
+name: Deploy to Server
+
+on:
+  push:
+    branches: [ main ] # Запускать при пуше в ветку main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy to server
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.SSH_HOST }} # IP твоего сервера
+          username: ${{ secrets.SSH_USERNAME }} # Имя пользователя (например, root)
+          key: ${{ secrets.SSH_PRIVATE_KEY }} # Приватный SSH ключ
+          script: |
+            cd /path/to/your/project/backend 
+            git pull
+            npm install
+            pm2 restart index # Или pm2 reload index

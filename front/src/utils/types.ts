@@ -1,7 +1,6 @@
 // types.ts
 
-// ✅ Шаг 1: Добавляем тип для адреса.
-// Его структура должна совпадать с тем, что используется в useAddress и отправляется на бэкенд.
+// Этот интерфейс у тебя правильный, оставляем
 export interface UserAddress {
   userId: number;
   city: string;
@@ -14,20 +13,37 @@ export interface UserAddress {
   pickupAddress?: string;
 }
 
-
+// 🔥🔥🔥 ВОТ ГЛАВНЫЙ ФИКС 🔥🔥🔥
+// Обновляем интерфейс заказа в соответствии с бэкендом
 export interface Order {
-  id: string;
+  _id: string; // Уникальный ID от MongoDB, для React-ключей
+  publicId: string; // Наш новый, красивый, публичный ID
+  id?: string; // Старый ID делаем НЕОБЯЗАТЕЛЬНЫМ (для старых заказов в базе)
+
   userId: number;
   username?: string;
   link: string;
   category: string;
   shipping: string;
   price: number;
-  status: 'pending' | 'approved' | 'rejected' | 'to-warehouse' | 'to-moscow';
   createdAt: string;
+  
+  // Приводим статусы в соответствие с бэкендом
+  status: 
+    | 'pending'
+    | 'awaiting_payment'
+    | 'paid'
+    | 'to_warehouse'
+    | 'at_warehouse'
+    | 'to_moscow'
+    | 'in_moscow'
+    | 'shipped_cdek'
+    | 'ready_for_pickup'
+    | 'completed'
+    | 'rejected';
 }
 
-// ✅ Шаг 2: Добавляем поле 'address' в тип для создания заказа.
+// Этот тип тоже в порядке, оставляем
 export type CreateOrderPayload = {
   userId: number;
   username?: string;
@@ -35,5 +51,5 @@ export type CreateOrderPayload = {
   category: string;
   shipping: string;
   rawPoizonPrice: number;
-  address: UserAddress; // <--- ВОТ ЭТА СТРОКА ВСЁ ЧИНИТ
+  address: UserAddress;
 };

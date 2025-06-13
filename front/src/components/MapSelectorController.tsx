@@ -1,5 +1,5 @@
 // src/components/MapSelectorController.tsx
-import { Suspense, lazy } from "react";
+import { Suspense, lazy, useMemo } from "react"; // ✅ Импортируем useMemo
 import MapSkeleton from "./MapSkeleton";
 
 const LazyYandexMap = lazy(() => import("./YandexMap"));
@@ -18,39 +18,34 @@ interface Props {
   cityCode: string;
   pickupPoints: PickupPoint[];
   selectedPoint: Point | null;
-  onPointSelect: (point: { code: string, address: string, coords: [number, number] }) => void; // ✅ Добавляем coords
-  mapCenter: [number, number]; // ✅ Теперь это обязательный проп
+  onPointSelect: (point: { code: string, address: string, coords: [number, number] }) => void;
 }
 
 export default function MapSelectorController({
-  cityCode, pickupPoints, selectedPoint, onPointSelect, mapCenter
+  cityCode, pickupPoints, selectedPoint, onPointSelect
 }: Props) {
 
-  if (!cityCode || !pickupPoints.length) {
+  if (!cityCode || !pickupPoints?.length) {
     return <MapSkeleton />;
   }
 
-  const mapPoints = pickupPoints.map((p) => ({
-    coords: [p.location.latitude, p.location.longitude] as [number, number],
-    label: p.location.address,
-    code: p.code,
-  }));
+  // 🔥🔥🔥 ГЛАВНЫЙ ФИКС ВСЕЙ НАШЕЙ ЭПОПЕИ 🔥🔥🔥
+  // Мы мемоизируем массив `mapPoints`.
+  // Он будет пересоздаваться ТОЛЬКО тогда, когда изменится `pickupPoints` (т.е. при смене города).
+  // При всех остальных ре-рендерах (клик на метку) `useMemo` вернет старую версию массива.
+  const mapPoints = useMemo(() => {
+    return pickupPoints.map((p) => ({
+      coords: [p.location.latitude, p.location.longitude] as [number, number],
+      label: p.location.address,
+      code: p.code,
+    }));
+  }, [pickupPoints]); // ✅ Зависимость - только исходные данные.
 
   return (
     <Suspense fallback={<MapSkeleton />}>
       <LazyYandexMap
-        initialCenter={mapCenter} // ✅ Передаем управляемый центр
-        points={mapPoints}
-        onSelect={(point) => {
-          const selectedFullPoint = pickupPoints.find(p => p.code === point.code);
-          if (selectedFullPoint) {
-            // ✅ Прокидываем наверх не только код и адрес, но и координаты
-            onPointSelect({
-              ...point,
-              coords: [selectedFullPoint.location.latitude, selectedFullPoint.location.longitude]
-            });
-          }
-        }}
+        points={mapPoints} // Теперь сюда всегда приходит стабильный проп
+        onSelect={onPointSelect}
         selectedCode={selectedPoint?.code || null}
       />
     </Suspense>

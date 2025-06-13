@@ -1,9 +1,20 @@
-// models/Order.js
+// backend/models/Order.js
 import mongoose from 'mongoose';
 
 const OrderSchema = new mongoose.Schema({
-  id: String,
-  userId: Number,
+  // 🔥 НОВОЕ ПОЛЕ: Короткий, уникальный и читаемый ID для клиента и менеджера
+  publicId: {
+    type: String,
+    required: true,
+    unique: true,
+    index: true, // Индекс для быстрого поиска
+  },
+
+  // 🗑️ УДАЛЕНО ПОЛЕ: id: String, - оно больше не нужно.
+  // MongoDB сама создает уникальный _id, который мы используем внутри системы.
+
+  // --- Остальные поля остаются как были ---
+  userId: { type: Number, required: true },
   username: String,
   link: String,
   category: String,
@@ -33,10 +44,10 @@ const OrderSchema = new mongoose.Schema({
   phone: String,
   pickupCode: String,
   pickupAddress: String,
-  createdAt: {
-    type: Date,
-    default: Date.now
-  }
+}, {
+  // ✨ УЛУЧШЕНИЕ: Используем встроенную опцию Mongoose.
+  // Она автоматически добавит и будет управлять полями createdAt и updatedAt.
+  timestamps: true
 });
 
 // Используем mongoose.models для предотвращения ошибки при hot-reload

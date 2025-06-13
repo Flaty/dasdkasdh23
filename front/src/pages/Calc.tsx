@@ -1,6 +1,6 @@
 // src/pages/Calc.tsx
 
-import { useReducer, useMemo } from "react";
+import { useReducer, useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 
 import { getUserData } from "../utils/user";
@@ -12,6 +12,7 @@ import { useAddress } from "../hook/useAddress";
 
 import { InteractiveButton } from "../components/ui/InteractiveButton";
 import BottomSheetSelector from "../components/BottomSheetSelector";
+import OrderCreatedSheet from "../components/OrderCreatedSheet";
 import { ShoppingBagIcon, TruckIcon, CubeIcon, TagIcon } from "@heroicons/react/24/outline";
 import SpinnerIcon from "../components/SpinnerIcon";
 
@@ -53,11 +54,13 @@ function calcReducer(state: CalcState, action: CalcAction): CalcState {
   }
 }
 
-// ✅ ФУНКЦИЯ УДАЛЕНА ОТСЮДА. ЭТО ПРАВИЛЬНО.
-
 export default function Calc() {
   const initialState: CalcState = { status: 'idle', url: '', price: '', category: '', delivery: '', resultText: '' };
   const [state, dispatch] = useReducer(calcReducer, initialState);
+  
+  // ✅ Добавляем состояния для боттом-шита
+  const [orderCreatedOpen, setOrderCreatedOpen] = useState(false);
+  const [createdOrderId, setCreatedOrderId] = useState<string>("");
 
   const user = getUserData();
   const { data: rateData, isLoading: isRateLoading } = useRate();
@@ -93,7 +96,7 @@ export default function Calc() {
     }
   };
 
- const handleSubmit = async () => {
+  const handleSubmit = async () => {
     const { url, price, category, delivery } = state;
 
     if (!isFormFilled || !user) {
@@ -120,28 +123,36 @@ export default function Calc() {
         userId: addressData.userId
       };
 
-      await createOrder({
+      const result = await createOrder({
         userId: user.id,
         username: user.username || 'unknown',
         link: url,
         category,
         shipping: delivery,
         rawPoizonPrice: Number(price.replace(",", ".").trim()),
-        address: cleanAddress, // ✅ Отправляем "чистый" объект
+        address: cleanAddress,
       });
 
-
-      // ✅ Оставляем только один вызов toast
+      // ✅ Сохраняем ID созданного заказа
       if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
-      toast("✅ Заказ успешно оформлен!");
       dispatch({ type: 'SUBMIT_SUCCESS' });
-      setTimeout(() => navigate("/profile", { replace: true }), 1500);
+      
+      // ✅ Открываем боттом-шит с информацией о заказе
+      setCreatedOrderId(result.id);
+      setOrderCreatedOpen(true);
+      localStorage.setItem('unpaidOrderId', result.id);
+      localStorage.setItem('unpaidOrderStatus', 'awaiting_payment');
 
     } catch (err) {
       if (navigator.vibrate) navigator.vibrate([100, 50, 100, 50, 100]);
       toast(err instanceof Error ? err.message : "❌ Ошибка при оформлении заказа");
       dispatch({ type: 'FIELD_CHANGE', payload: { status: 'calculated' } });
     }
+  };
+
+  // ✅ Обработчик закрытия боттом-шита
+  const handleOrderSheetClose = () => {
+    setOrderCreatedOpen(false);
   };
 
   const isFormFilled = useMemo(() => !!(state.url && state.price && state.category && state.delivery), [state]);
@@ -253,6 +264,18 @@ export default function Calc() {
           )}
         </AnimatePresence>
       </div>
+
+      {/* ✅ Вот здесь подключаем наш OrderCreatedSheet */}
+      {resultData && (
+        <OrderCreatedSheet
+          open={orderCreatedOpen}
+          onClose={handleOrderSheetClose}
+          orderId={createdOrderId}
+          estimatedPrice={parseInt(resultData.main.replace(/\D/g, ''))}
+          category={state.category}
+          deliveryType={state.delivery}
+        />
+      )}
     </div>
   );
 }

@@ -1,5 +1,9 @@
 /* Modern Design System 2025 */
 /* Modern Design System 2025 */
+
+* {
+  user-select: none;
+}
 html, body, #root {
   margin: 0;
   padding: 0;
@@ -293,4 +297,16 @@ body {
   .tabbar-translucent {
     background: rgba(0, 0, 0, 0.85) !important;
   }
+}
+
+@keyframes gradient-x {
+  0%, 100% { transform: translateX(0%); }
+  50% { transform: translateX(100%); }
+}
+.animate-gradient-x {
+  animation: gradient-x 15s ease infinite;
+  background-size: 200% 200%;
+}
+.animation-delay-500 {
+  animation-delay: 500ms;
 }

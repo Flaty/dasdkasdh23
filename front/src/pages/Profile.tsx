@@ -194,7 +194,7 @@ export default function Profile() {
             <p className="text-sm text-white/70 leading-snug">
               Свяжись с менеджером в Telegram, если у тебя возникли вопросы по расчёту, заказу или доставке.
             </p>
-            <a href="https://t.me/your_manager" target="_blank" rel="noopener noreferrer" className="block w-full text-center text-sm font-medium text-white rounded-full py-2.5 bg-sky-500/20 border border-sky-400/40 hover:bg-sky-500/30 transition-colors">
+            <a href="https://t.me/Littleton59" target="_blank" rel="noopener noreferrer" className="block w-full text-center text-sm font-medium text-white rounded-full py-2.5 bg-sky-500/20 border border-sky-400/40 hover:bg-sky-500/30 transition-colors">
               Написать в Telegram
             </a>
             <p className="text-xs text-white/30 text-center mt-6">Отвечаем в течение пары минут</p>
