@@ -1,4 +1,4 @@
-// main.tsx
+// src/main.tsx
 
 import '@unocss/reset/tailwind.css';
 import './styles/globals.css';
@@ -9,19 +9,18 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
 
-// ✅ Импортируем стандартный BrowserRouter
 import { BrowserRouter } from 'react-router-dom';
+import { setUserData, clearUserData } from './utils/user';
+// import { fetchWithAuth } from './api/fetchWithAuth'; // Если ты его не используешь напрямую здесь, можно убрать
 
-import { setUserData } from './utils/user';
-import { TransitionDirectionProvider } from "./utils/TransitionDirectionContext";
 import { ToastProvider } from "./components/ToastProvider";
-
+import { TransitionDirectionProvider } from "./utils/TransitionDirectionContext"; // ✅ Импортируем провайдер
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 
 const queryClient = new QueryClient();
 
-// ... (твой код со стилями и юзером остается без изменений) ...
+// --- Стили ---
 const style = document.createElement('style');
 style.innerHTML = `
   @font-face {
@@ -38,58 +37,94 @@ style.innerHTML = `
   }
 `;
 document.head.appendChild(style);
-
 document.body.style.backgroundColor = "#0f0f10";
-document.body.style.overflowX = 'hidden';
 
-const userParam = new URLSearchParams(window.location.search).get('user');
-if (userParam) {
+// --- Главная функция запуска ---
+async function startApp() {
+  const rootElement = document.getElementById('root');
+  if (!rootElement) return;
+  
+  const isDev = import.meta.env.DEV;
+  const tg = window.Telegram?.WebApp;
+
   try {
-    const parsed = JSON.parse(decodeURIComponent(userParam));
-    setUserData(parsed);
-    window.history.replaceState({}, '', window.location.pathname);
-  } catch (err) {
-    console.error('Ошибка парсинга user из URL', err);
-  }
-}
+    let userDataForApp: any = null;
 
-try {
-  if (window.Telegram && window.Telegram.WebApp) {
-    const tg = window.Telegram.WebApp;
-    
-    // 1. Устанавливаем цвет фона и шапки в один и тот же цвет твоего приложения.
-    // Это намекнет Telegram, что нужен бесшовный режим.
-    tg.setHeaderColor('#0a0a0a'); // Цвет шапки
-    tg.setBackgroundColor('#0a0a0a'); // Цвет фона за пределами окна
+    if (tg && tg.initData) {
+      // --- ЛОГИКА ДЛЯ TELEGRAM WEB APP ---
+      tg.ready();
+      tg.expand();
+      tg.setHeaderColor('#0a0a0a');
+      tg.setBackgroundColor('#0a0a0a');
+      
+      let token = localStorage.getItem('jwt_token');
 
-    // 2. Вызываем expand() сразу.
-    tg.expand();
+      if (!token) {
+        const response = await fetch('/api/auth/verify', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ initData: tg.initData }),
+        });
 
-    // 3. (Опционально, но надежно) Добавляем таймер, чтобы "дожать" expand(),
-    // если он не сработал сразу из-за задержек инициализации.
-    setTimeout(() => {
-      if (!tg.isExpanded) {
-        tg.expand();
+        if (!response.ok) {
+          throw new Error(`Auth verification failed with status: ${response.status}`);
+        }
+        
+        const { token: newToken, user } = await response.json();
+        localStorage.setItem('jwt_token', newToken);
+        token = newToken;
+        userDataForApp = user;
       }
-    }, 150);
+      
+      if (token && !userDataForApp) {
+          const payload = JSON.parse(atob(token.split('.')[1]));
+          userDataForApp = tg.initDataUnsafe?.user || { id: payload.userId };
+      }
+
+    } else if (isDev) {
+      // --- ЛОГИКА ДЛЯ РЕЖИМА РАЗРАБОТКИ ---
+      console.warn("⚠️ РЕЖИМ РАЗРАБОТКИ: Используется моковый пользователь.");
+      userDataForApp = {
+        id: 12345,
+        first_name: "Dev",
+        username: "dev_user",
+        photo_url: "https://placehold.co/96x96"
+      };
+      
+    } else {
+      rootElement.innerHTML = '<h1 style="color: white; text-align: center; padding-top: 50px;">Это приложение можно запустить только через Telegram.</h1>';
+      return;
+    }
+    
+    if (userDataForApp) {
+      setUserData(userDataForApp);
+    } else {
+      clearUserData();
+      localStorage.removeItem('jwt_token');
+      throw new Error("Не удалось получить данные пользователя.");
+    }
+    
+    // ✅ ФИКС: Оборачиваем App во все необходимые провайдеры
+    ReactDOM.createRoot(rootElement).render(
+      <React.StrictMode>
+        <QueryClientProvider client={queryClient}>
+          <BrowserRouter>
+            <ToastProvider>
+              <TransitionDirectionProvider>
+                <App />
+              </TransitionDirectionProvider>
+            </ToastProvider>
+          </BrowserRouter>
+          <ReactQueryDevtools initialIsOpen={false} />
+        </QueryClientProvider>
+      </React.StrictMode>
+    );
+
+  } catch (e) {
+    console.error("Auth process failed", e);
+    rootElement.innerHTML = `<h1 style="color: #f87171; text-align: center; padding-top: 50px;">Ошибка аутентификации. Попробуйте перезапустить приложение.</h1><p style="color: #9ca3af; text-align: center;">${e instanceof Error ? e.message : ''}</p>`;
   }
-} catch (e) {
-  console.error("Ошибка при инициализации Telegram Web App:", e);
 }
 
-// 🚀 Рендер
-ReactDOM.createRoot(document.getElementById('root')!).render(
-  <React.StrictMode>
-    <QueryClientProvider client={queryClient}>
-      {/* ✅ Используем BrowserRouter вместо HistoryRouter */}
-      <BrowserRouter>
-        <ToastProvider>
-          <TransitionDirectionProvider>
-            <App />
-          </TransitionDirectionProvider>
-        </ToastProvider>
-      </BrowserRouter>
-      <ReactQueryDevtools initialIsOpen={false} />
-    </QueryClientProvider>
-  </React.StrictMode>
-);
+// Запускаем!
+startApp();

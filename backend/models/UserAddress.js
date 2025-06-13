@@ -6,7 +6,12 @@ const userAddressSchema = new mongoose.Schema({
   name: String,
   phone: String,
   city: String,
-  city_code: Number,
+  city_code: {
+    type: Number, // По-прежнему храним как число
+    // Эта функция будет вызвана перед сохранением.
+    // Она попытается преобразовать любое входящее значение в число.
+    set: v => (typeof v === 'string' ? parseInt(v, 10) : v) 
+  },
   street: String,
   deliveryType: {
     type: String,

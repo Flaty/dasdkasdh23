@@ -2,6 +2,7 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { getUserData } from '../utils/user';
+import { getJSON } from '../api/fetchWithAuth';
 
 // Описываем типы данных, которые приходят с нашего нового эндпоинта /api/profile
 // Это наш "контракт" с бэкендом. Он гарантирует, что мы не опечатаемся в названиях полей.
@@ -41,24 +42,11 @@ export interface ProfileData {
 // Эта функция будет делать сам запрос к API
 // Она должна быть асинхронной и возвращать данные или кидать ошибку
 const fetchProfile = async (userId: number): Promise<ProfileData> => {
-  // В дев-режиме можно использовать полный URL, если нет прокси
-  // const apiUrl = import.meta.env.DEV 
-  //   ? `http://localhost:3001/api/profile?userId=${userId}`
-  //   : `/api/profile?userId=${userId}`;
-  
-  const apiUrl = `/api/profile?userId=${userId}`;
-
-  const response = await fetch(apiUrl);
-  
-  if (!response.ok) {
-    // Если сервер вернул ошибку (404, 500 и т.д.), кидаем ошибку
-    // React Query поймает ее и переведет запрос в состояние 'error'
-    throw new Error('Сетевая ошибка или сервер недоступен');
-  }
-  
-  // Парсим JSON и возвращаем
-  return response.json();
+  // ✅ Используем getJSON. Токен добавится автоматически.
+  return getJSON<ProfileData>(`/api/profile`); 
 };
+
+
 
 // Наш главный кастомный хук, который мы будем использовать в компоненте
 export function useProfile() {

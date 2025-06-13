@@ -8,14 +8,13 @@ import { createOrder } from "../api/createOrder";
 import { useCustomNavigate } from "../utils/useCustomNavigate";
 import { useToast } from "../components/ToastProvider";
 import { useRate } from "../hook/useRate";
-import { useAddress } from "../hook/useAddress"; // ✅ Импортируем хук для адреса
+import { useAddress } from "../hook/useAddress";
 
 import { InteractiveButton } from "../components/ui/InteractiveButton";
 import BottomSheetSelector from "../components/BottomSheetSelector";
 import { ShoppingBagIcon, TruckIcon, CubeIcon, TagIcon } from "@heroicons/react/24/outline";
 import SpinnerIcon from "../components/SpinnerIcon";
 
-// --- Типы и Редьюсер для нашего калькулятора ---
 type CalcStatus = 'idle' | 'calculating' | 'calculated' | 'error' | 'submitting' | 'submitted';
 
 interface CalcState {
@@ -54,34 +53,23 @@ function calcReducer(state: CalcState, action: CalcAction): CalcState {
   }
 }
 
-// --- Чистая функция для логики расчета ---
-function calculateFinalPrice(priceCny: number, delivery: string, rate: number) {
-  const fixFee = 590;
-  const deliveryCost = delivery === "air" ? 800 : delivery === "standard" ? 400 : 0;
-  if (deliveryCost === 0) throw new Error("Выберите способ доставки");
-  
-  const total = Math.round(priceCny * rate + fixFee + deliveryCost);
-  return {
-      total,
-      details: `(курс: ${rate.toFixed(2)}₽, комиссия: ${fixFee}₽, доставка: ${deliveryCost}₽)`
-  };
-}
+// ✅ ФУНКЦИЯ УДАЛЕНА ОТСЮДА. ЭТО ПРАВИЛЬНО.
 
-// --- Компонент ---
 export default function Calc() {
   const initialState: CalcState = { status: 'idle', url: '', price: '', category: '', delivery: '', resultText: '' };
   const [state, dispatch] = useReducer(calcReducer, initialState);
 
   const user = getUserData();
-  const { data: rateData, isLoading: isRateLoading, isError: isRateError } = useRate();
-  const { addressData, isLoading: isLoadingAddress } = useAddress(user?.id); // ✅ Получаем адрес пользователя
+  const { data: rateData, isLoading: isRateLoading } = useRate();
+  const { addressData, isLoading: isLoadingAddress } = useAddress(user?.id);
   const toast = useToast();
   const navigate = useCustomNavigate();
 
+  // Эта функция теперь нужна только для предварительного расчета, чтобы показать юзеру
   const handleCalc = () => {
     dispatch({ type: 'CALCULATE' });
     
-    if (isRateError || !rateData) {
+    if (!rateData) {
       return dispatch({ type: 'CALCULATION_ERROR', payload: "Ошибка: не удалось загрузить курс." });
     }
 
@@ -90,22 +78,28 @@ export default function Calc() {
       if (!state.price || isNaN(priceCny) || priceCny <= 0) {
         throw new Error("Введите корректную цену товара в юанях.");
       }
-      const { total, details } = calculateFinalPrice(priceCny, state.delivery, rateData.rate);
-      dispatch({ type: 'CALCULATION_SUCCESS', payload: `Итог: ${total} ₽\n${details}` });
+      
+      // Временный расчет на клиенте для показа
+      const fixFee = 590;
+      const deliveryCost = state.delivery === "air" ? 800 : state.delivery === "standard" ? 400 : 0;
+      if (deliveryCost === 0) throw new Error("Выберите способ доставки");
+      const total = Math.round(priceCny * rateData.rate + fixFee + deliveryCost);
+      const details = `(курс: ${rateData.rate.toFixed(2)}₽, комиссия: ${fixFee}₽, доставка: ${deliveryCost}₽)`;
+
+      dispatch({ type: 'CALCULATION_SUCCESS', payload: `Примерно: ${total} ₽\n${details}` });
     } catch (error) {
       const message = error instanceof Error ? error.message : "Неизвестная ошибка";
       dispatch({ type: 'CALCULATION_ERROR', payload: message });
     }
   };
 
-  const handleSubmit = async () => {
+ const handleSubmit = async () => {
     const { url, price, category, delivery } = state;
 
     if (!isFormFilled || !user) {
         toast("❌ Сначала заполните все поля заказа");
         return;
     }
-
     if (!addressData || !addressData.name) {
       toast("❌ Пожалуйста, заполните адрес доставки в профиле");
       return;
@@ -113,6 +107,19 @@ export default function Calc() {
 
     dispatch({ type: 'SUBMIT' });
     try {
+      // ✅ ФИКС: Создаем "чистый" объект адреса только с нужными полями
+      const cleanAddress = {
+        deliveryType: addressData.deliveryType,
+        city: addressData.city,
+        city_code: addressData.city_code,
+        street: addressData.street,
+        name: addressData.name,
+        phone: addressData.phone,
+        pickupCode: addressData.pickupCode,
+        pickupAddress: addressData.pickupAddress,
+        userId: addressData.userId
+      };
+
       await createOrder({
         userId: user.id,
         username: user.username || 'unknown',
@@ -120,17 +127,19 @@ export default function Calc() {
         category,
         shipping: delivery,
         rawPoizonPrice: Number(price.replace(",", ".").trim()),
-        address: addressData, // ✅ Передаем объект с адресом
+        address: cleanAddress, // ✅ Отправляем "чистый" объект
       });
 
-      if (navigator.vibrate) navigator.vibrate([100, 50, 100]); // ✅ Паттерн "успех"
+
+      // ✅ Оставляем только один вызов toast
+      if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
       toast("✅ Заказ успешно оформлен!");
       dispatch({ type: 'SUBMIT_SUCCESS' });
-      setTimeout(() => navigate("/profile"), 1500);
+      setTimeout(() => navigate("/profile", { replace: true }), 1500);
 
     } catch (err) {
-      if (navigator.vibrate) navigator.vibrate([100, 50, 100, 50, 100]); // ✅ Паттерн "ошибка"
-      toast("❌ Ошибка при оформлении заказа");
+      if (navigator.vibrate) navigator.vibrate([100, 50, 100, 50, 100]);
+      toast(err instanceof Error ? err.message : "❌ Ошибка при оформлении заказа");
       dispatch({ type: 'FIELD_CHANGE', payload: { status: 'calculated' } });
     }
   };
@@ -141,7 +150,7 @@ export default function Calc() {
   const resultData = useMemo(() => {
     if (!state.resultText) return null;
     const [main, details] = state.resultText.split('\n');
-    return { main: main.replace("Итог: ", ""), details };
+    return { main: main.replace("Примерно: ", ""), details };
   }, [state.resultText]);
 
   return (
@@ -203,7 +212,7 @@ export default function Calc() {
 
         <InteractiveButton onClick={handleCalc} disabled={state.status === 'calculating' || isRateLoading}
           className="min-h-[48px] rounded-xl bg-white text-black font-semibold text-sm">
-          {isRateLoading ? "Загрузка курса..." : state.status === 'calculating' ? "Расчет..." : "Рассчитать цену"}
+          {isRateLoading ? "Загрузка курса..." : state.status === 'calculating' ? "Расчет..." : "Рассчитать предварительно"}
         </InteractiveButton>
 
         <AnimatePresence>

@@ -8,11 +8,15 @@ export interface User {
   photo_url?: string;
 }
 
-// глобально кэшируем пользователя (в том числе мок)
-let cachedUser: User | null = null
+let cachedUser: User | null = null;
 
 export function setUserData(user: User) {
   cachedUser = user;
+}
+
+// ✅ ФИКС: Добавляем экспорт для этой функции
+export function clearUserData() {
+  cachedUser = null;
 }
 
 export function getUserData(): User | null {

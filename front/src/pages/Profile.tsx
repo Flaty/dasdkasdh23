@@ -97,7 +97,7 @@ export default function Profile() {
       navigator.clipboard.writeText(profile.referral_info.link);
       // ✅ Haptic Feedback: Успешное действие
       if (navigator.vibrate) navigator.vibrate(50); 
-      alert('Ссылка для друга скопирована!');
+      ('Ссылка для друга скопирована!');
     }
   }
 
