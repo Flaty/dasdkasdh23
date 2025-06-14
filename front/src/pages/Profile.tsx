@@ -14,7 +14,6 @@ import { ru } from 'date-fns/locale';
 import type { Achievement } from '../utils/types'; 
 import { haptic } from "../utils/haptic";
 import { MessageSquareQuote, Gem, MapPin, Handshake, ChevronRightIcon, Package, Gift, Trophy, Award, Flame, ReceiptText } from 'lucide-react';
-import { ProfileHeader } from '../components/ProfileHeader'; 
 
 // --- Хелперы ---
 
