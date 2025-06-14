@@ -4,7 +4,7 @@
     "useDefineForClassFields": true,
     "lib": ["ES2020", "DOM", "DOM.Iterable"],
     "module": "ESNext",
-    "skipLibCheck": true, /* ВАЖНО: Пропускать проверку типов во всех .d.ts файлах зависимостей. */
+    "skipLibCheck": true,
 
     /* Bundler mode */
     "moduleResolution": "bundler",
@@ -18,8 +18,11 @@
     "strict": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
-    "noFallthroughCasesInSwitch": true
+    "noFallthroughCasesInSwitch": true,
+
+    /* --- ВОТ ЭТО НУЖНО ДОБАВИТЬ --- */
+    "types": ["vite/client", "@twa-dev/types"]
   },
-  "include": ["src"],  /* САМЫЙ ГЛАВНЫЙ ФИКС: Явно указываем, что компилировать нужно ТОЛЬКО папку src. */
-  "exclude": ["node_modules"], /* Явно говорим НЕ ЛЕЗТЬ в node_modules. */
+  "include": ["src"],
+  "exclude": ["node_modules"]
 }

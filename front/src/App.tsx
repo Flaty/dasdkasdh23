@@ -1,4 +1,4 @@
-// src/App.tsx - ПОСЛЕДНЯЯ ВЕРСИЯ
+// src/App.tsx - ИСПРАВЛЕННАЯ ВЕРСИЯ C ТИПАМИ
 import { useState, useEffect } from "react";
 import { Routes, Route, useLocation, Navigate } from "react-router-dom";
 import { AnimatePresence } from "framer-motion";
@@ -10,6 +10,17 @@ import OrdersPage from "./pages/OrdersPage";
 import PageWrapperFade from "./components/PageWrapperFade";
 import TabBarLayout from "./layouts/TabBarLayout";
 
+// Импортируем тип WebApp из установленного пакета
+import type { WebApp } from '@twa-dev/types';
+
+declare global {
+  interface Window {
+    Telegram: {
+      WebApp: WebApp;
+    };
+  }
+}
+
 const LoadingScreen = () => (
   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', color: 'white', backgroundColor: '#0f0f10' }}>
     Загрузка...
@@ -20,10 +31,40 @@ const ErrorScreen = ({ message }: { message: string }) => (
    <div style={{ padding: '2rem', textAlign: 'center', color: 'white', backgroundColor: '#a00', fontFamily: 'sans-serif', height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
     <div>
       <h1 style={{ fontSize: '1.5rem', fontWeight: 'bold' }}>Произошла ошибка</h1>
-      <p style={{ marginTop: '1rem' }}>{message}</p>
+      <p style={{ marginTop: '1rem', lineHeight: '1.5' }}>{message}</p>
     </div>
   </div>
 );
+
+/**
+ * Ожидает инициализации Telegram WebApp с небольшим таймаутом.
+ * @param {number} timeout - Максимальное время ожидания в миллисекундах.
+ * @returns {Promise<WebApp>} - Промис, который разрешается с объектом Telegram.WebApp.
+ */
+const waitForTelegram = (timeout = 3000): Promise<WebApp> => {
+  return new Promise((resolve, reject) => {
+    let attempts = 0;
+    const interval = 100;
+    const maxAttempts = timeout / interval;
+
+    const check = () => {
+      if (window.Telegram?.WebApp?.initData) {
+        resolve(window.Telegram.WebApp);
+      } else if (attempts < maxAttempts) {
+        attempts++;
+        setTimeout(check, interval);
+      } else {
+        if (window.Telegram?.WebApp) {
+            reject(new Error("Не удалось получить данные для входа. Пожалуйста, запускайте приложение через меню или кнопку в боте Telegram."));
+        } else {
+            reject(new Error("Это приложение должно быть запущено внутри Telegram. Если ошибка повторяется, попробуйте перезапустить клиент."));
+        }
+      }
+    };
+    check();
+  });
+};
+
 
 export default function App() {
   const location = useLocation();
@@ -32,26 +73,17 @@ export default function App() {
 
   useEffect(() => {
     const initializeApp = async () => {
-      const tg = window.Telegram?.WebApp as any;
-
-      if (!tg || !tg.initData) {
-        setError("Это приложение должно быть запущено внутри Telegram.");
-        setIsLoading(false);
-        clearUserData();
-        return;
-      }
-      
-      // 🔥🔥🔥 ФИНАЛЬНЫЙ ФИКС ШТОРКИ 🔥🔥🔥
-      // СНАЧАЛА отдаем команды UI, которые должны выполниться МГНОВЕННО.
-      tg.ready();
-      tg.expand(); // <--- САМАЯ ГЛАВНАЯ КОМАНДА. ВЫЗЫВАЕМ СРАЗУ.
-      tg.setHeaderColor('secondary_bg_color'); 
-      tg.setBackgroundColor('secondary_bg_color');
-      tg.setBackgroundColor('#0a0a0a');
-      tg.enableClosingConfirmation();
-
-      // А ПОТОМ уже начинаем асинхронную работу с сетью.
       try {
+        // Теперь tg будет иметь правильный тип WebApp
+        const tg = await waitForTelegram();
+        
+        tg.ready();
+        tg.expand();
+        tg.setHeaderColor('secondary_bg_color'); 
+        tg.setBackgroundColor('secondary_bg_color');
+        tg.setBackgroundColor('#0a0a0a');
+        tg.enableClosingConfirmation();
+
         const response = await fetch('/api/auth/verify', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -63,16 +95,18 @@ export default function App() {
         const data = await response.json();
         localStorage.setItem('jwt_token', data.token);
         
-        setUserData(tg.initDataUnsafe.user);
+        if (tg.initDataUnsafe.user) {
+            setUserData(tg.initDataUnsafe.user);
+        }
 
       } catch (e: unknown) {
         console.error("Критическая ошибка инициализации:", e);
+        clearUserData();
         if (e instanceof Error) {
           setError(e.message);
         } else {
           setError("Произошла неизвестная ошибка.");
         }
-        clearUserData();
       } finally {
         setIsLoading(false);
       }
