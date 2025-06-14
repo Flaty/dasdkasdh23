@@ -52,14 +52,26 @@ jobs:
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
+            # Переходим в рабочую директорию
             cd /root/my-tg-app
+
+            # ✅ ИСПОЛЬЗУЕМ HEREDOC. Это пуленепробиваемый способ записи многострочных данных.
             
-            if [ -z "${{ secrets.ENV_FILE_CONTENT }}" ]; then echo "ERROR: Secret ENV_FILE_CONTENT is empty!" >&2; exit 1; fi
-            if [ -z "${{ secrets.COMPOSE_PROD_YML_CONTENT }}" ]; then echo "ERROR: Secret COMPOSE_PROD_YML_CONTENT is empty!" >&2; exit 1; fi
+            # Записываем .env.prod
+            cat > .env.prod << 'EOF'
+            ${{ secrets.ENV_FILE_CONTENT }}
+            EOF
 
-            echo "${{ secrets.ENV_FILE_CONTENT }}" > .env.prod
-            echo "${{ secrets.COMPOSE_PROD_YML_CONTENT }}" > docker-compose.prod.yml
+            # Записываем docker-compose.prod.yml
+            cat > docker-compose.prod.yml << 'EOF'
+            ${{ secrets.COMPOSE_PROD_YML_CONTENT }}
+            EOF
 
+            # Проверяем, что файлы не пустые. Если что-то пошло не так, скрипт упадет.
+            if [ ! -s .env.prod ]; then echo "ERROR: .env.prod is empty after write!" >&2; exit 1; fi
+            if [ ! -s docker-compose.prod.yml ]; then echo "ERROR: docker-compose.prod.yml is empty after write!" >&2; exit 1; fi
+
+            # Запускаем docker-compose с флагом --env-file
             docker-compose --env-file .env.prod -f docker-compose.prod.yml pull
             docker-compose --env-file .env.prod -f docker-compose.prod.yml up -d --remove-orphans
             docker image prune -af
