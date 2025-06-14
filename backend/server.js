@@ -1,92 +1,34 @@
-// backend/index.js
-import dotenv from "dotenv";
-dotenv.config();
-
-// --- Библиотеки ---
-import express from "express";
-import cors from "cors";
-import bodyParser from "body-parser";
+// backend/server.js
 import mongoose from "mongoose";
-import { Telegraf } from "telegraf";
-import rateLimit from 'express-rate-limit';
-import pino from 'pino';
-import * as Sentry from "@sentry/node";
+import app, { bot, logger } from './app.js'; // Импортируем готовое приложение
 
-// --- Наши модули ---
-import { createAuthRouter, createAuthMiddleware } from './routes/auth.js';
-import createOrderRouter from './routes/orders.js';
-import createProfileRouter from './routes/profile.js';
-import createCartRouter from './routes/cart.js';
-import createCdekRouter from './routes/cdek.js';
-import createUserRouter from './routes/user.js';     // 🔥 ИМПОРТ НОВОГО РОУТЕРА
-import createPublicRouter from './routes/public.js'; // 🔥 ИМПОРТ НОВОГО РОУТЕРА
+// Импорты для логики бота
+import Order from './models/Order.js'; 
+import { Markup } from 'telegraf';
+import { statusLabels, escapeMarkdown } from './utils/botHelpers.js'; // Предположим, ты вынесешь хелперы сюда
 
-// === 1. НАСТРОЙКИ И ИНИЦИАЛИЗАЦИЯ ===
-const logger = pino({ transport: process.env.NODE_ENV !== 'production' ? { target: 'pino-pretty' } : undefined });
-const { BOT_TOKEN, MANAGER_CHAT_ID, WEBAPP_URL, JWT_SECRET, DATABASE_URL } = process.env;
+// --- Проверка переменных ---
+const { MANAGER_CHAT_ID, WEBAPP_URL, JWT_SECRET, DATABASE_URL, PORT = 3001 } = process.env;
 
-if (!JWT_SECRET || !BOT_TOKEN || !MANAGER_CHAT_ID) {
+if (!JWT_SECRET || !bot.token || !MANAGER_CHAT_ID) {
   logger.error("❌ Критически важные переменные не установлены в .env!");
   process.exit(1);
 }
 
-const bot = new Telegraf(BOT_TOKEN);
-const app = express();
-
-Sentry.init({
-  dsn: "https://c35ae6540be8f236e231007f854e84eb@o4509492849606656.ingest.us.sentry.io/4509492857929728",
-  tracesSampleRate: 1.0,
-  profilesSampleRate: 1.0,
-});
-
-// === 2. ГЛОБАЛЬНЫЕ MIDDLEWARE ===
-app.use(cors({ origin: WEBAPP_URL, credentials: true }));
-app.use(bodyParser.json());
-app.use('/api', rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: Number(process.env.RATE_LIMIT_MAX) || 100,
-  standardHeaders: true, legacyHeaders: false,
-  message: { error: "Слишком много запросов." }
-}));
-
-// === 3. ПОДКЛЮЧЕНИЕ К БАЗЕ ===
-mongoose.connect(DATABASE_URL || "mongodb://mongo:27017/orders")
+// --- Подключение к БД ---
+mongoose.connect(DATABASE_URL || "mongodb://127.0.0.1:27017/orders")
   .then(() => logger.info("✅ MongoDB подключена"))
   .catch((err) => logger.error({ err }, "❌ Ошибка подключения к MongoDB"));
 mongoose.connection.on('error', err => logger.error({ err }, '❌ Ошибка соединения с MongoDB'));
 mongoose.connection.on('disconnected', () => logger.warn('MongoDB отключена.'));
 
-// === 4. РОУТЫ ===
-app.get('/health', (req, res) => res.json({ status: 'ok', mongodb: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected' }));
 
-const authMiddleware = createAuthMiddleware({ logger });
-const authRoutes = createAuthRouter({ logger });
-const orderRoutes = createOrderRouter({ bot, logger });
-const profileRoutes = createProfileRouter({ bot, logger });
-const cartRoutes = createCartRouter({ logger });
-const cdekRoutes = createCdekRouter({ logger });
-const userRoutes = createUserRouter({ logger });       // 🔥 СОЗДАНИЕ НОВОГО РОУТЕРА
-const publicRoutes = createPublicRouter({ logger });   // 🔥 СОЗДАНИЕ НОВОГО РОУТЕРА
-
-// --- Публичные API роуты (не требуют токена) ---
-app.use('/api/auth', authRoutes);
-app.use('/api', publicRoutes); // Для /api/rate
-
-// --- Защищенные API роуты (требуют токен) ---
-app.use('/api', authMiddleware);
-app.use('/api/orders', orderRoutes);
-app.use('/api/profile', profileRoutes);
-app.use('/api/cart', cartRoutes);
-app.use('/api/cdek', cdekRoutes);
-app.use('/api/user', userRoutes); // Для /api/user/address
-
-// === 5. TELEGRAM BOT ===
+// --- Логика Telegram Bot ---
 // (Логика бота остается здесь, так как она тесно связана с жизненным циклом сервера)
 bot.command('start', (ctx) => {
   if (!WEBAPP_URL) return ctx.reply('Извините, магазин временно недоступен.');
   ctx.reply('Добро пожаловать!', Markup.inlineKeyboard([Markup.button.webApp('🛍️ Открыть магазин', WEBAPP_URL)]));
 });
-
 bot.on("callback_query", async (ctx) => {
   const data = ctx.callbackQuery.data;
   if (!data.startsWith('status_')) return ctx.answerCbQuery();
@@ -112,6 +54,8 @@ bot.on("callback_query", async (ctx) => {
   }
 });
 
+
+// --- Запуск сервера и Graceful Shutdown ---
 // === 6. ОБРАБОТЧИКИ ОШИБОК И GRACEFUL SHUTDOWN ===
 
 let server;

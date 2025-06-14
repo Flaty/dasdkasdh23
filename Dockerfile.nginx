@@ -1,0 +1,18 @@
+# ./Dockerfile.nginx
+
+# --- STAGE 1: Build Frontend ---
+FROM node:18-alpine AS frontend-builder
+WORKDIR /app
+COPY front/package*.json ./
+RUN npm ci
+COPY front/ ./
+RUN npm run build
+
+# --- STAGE 2: Final Nginx Image ---
+FROM nginx:alpine
+# Копируем собранный фронтенд из первого стейджа
+COPY --from=frontend-builder /app/dist /usr/share/nginx/html
+# Копируем конфиг nginx
+COPY nginx.conf /etc/nginx/conf.d/default.conf
+EXPOSE 80 443
+CMD ["nginx", "-g", "daemon off;"]

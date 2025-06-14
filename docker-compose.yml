@@ -1,3 +1,4 @@
+# ./docker-compose.yml
 version: '3.8'
 
 services:
@@ -6,37 +7,45 @@ services:
     restart: always
     volumes:
       - mongo_data:/data/db
+    networks:
+      - app-network
 
   backend:
-    build: ./backend
+    build:
+      context: ./backend  # Контекст сборки - папка backend
+      dockerfile: Dockerfile
     restart: always
-    environment:
-      - NODE_ENV=production
-      - DATABASE_URL=mongodb://mongo:27017/orders
-    env_file:
-      - .env.prod
+    env_file: .env # Для локалки используй простой .env
+    depends_on:
+      - mongo
+    networks:
+      - app-network
+    # Для локальной разработки можно прокинуть volume, чтобы не пересобирать контейнер на каждое изменение
+    volumes:
+      - ./backend:/app
+      - /app/node_modules # Исключаем node_modules из volume, чтобы использовались те, что внутри контейнера
 
   nginx:
-    image: nginx:alpine
+    build:
+      context: . # Контекст сборки - корень проекта
+      dockerfile: Dockerfile.nginx
     restart: always
     ports:
       - "80:80"
       - "443:443"
     volumes:
-      - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf
-      - ./front/dist:/usr/share/nginx/html
       - ./certbot/conf:/etc/letsencrypt
       - ./certbot/www:/var/www/certbot
     depends_on:
       - backend
+    networks:
+      - app-network
 
-  certbot:
-    image: certbot/certbot
-    restart: unless-stopped
-    volumes:
-      - ./certbot/conf:/etc/letsencrypt
-      - ./certbot/www:/var/www/certbot
-    entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew; sleep 12h & wait $${!}; done;'"
+  # Certbot оставляем без изменений, он не зависит от кода
 
 volumes:
   mongo_data:
+
+networks:
+  app-network:
+    driver: bridge

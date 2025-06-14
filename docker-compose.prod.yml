@@ -1,0 +1,52 @@
+# ./docker-compose.prod.yml
+version: '3.8'
+
+services:
+  mongo:
+    image: mongo:6
+    restart: always
+    volumes:
+      - mongo_data:/data/db
+    networks:
+      - app-network
+    env_file: .env.prod # Переменные для mongo тоже в env
+
+  backend:
+    # Имя образа, которое мы будем пушить в CI/CD
+    image: ${DOCKERHUB_USERNAME}/my-tg-app-backend:latest
+    restart: always
+    env_file: .env.prod
+    depends_on:
+      - mongo
+    networks:
+      - app-network
+
+  nginx:
+    # Имя образа, которое мы будем пушить в CI/CD
+    image: ${DOCKERHUB_USERNAME}/my-tg-app-nginx:latest
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./certbot/conf:/etc/letsencrypt
+      - ./certbot/www:/var/www/certbot
+    depends_on:
+      - backend
+    networks:
+      - app-network
+
+  certbot:
+    image: certbot/certbot
+    restart: unless-stopped
+    volumes:
+      - ./certbot/conf:/etc/letsencrypt
+      - ./certbot/www:/var/www/certbot
+    entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew; sleep 12h & wait $${!}; done;'"
+
+volumes:
+  mongo_data:
+
+networks:
+  app-network:
+    driver: bridge

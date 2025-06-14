@@ -1,22 +1,78 @@
 # .github/workflows/deploy.yml
-name: Deploy to Server
+name: Build and Deploy to Production
 
 on:
   push:
-    branches: [ main ] # Запускать при пуше в ветку main
+    branches: [ "main" ]
+
+env:
+  DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+  BACKEND_IMAGE_NAME: my-tg-app-backend
+  NGINX_IMAGE_NAME: my-tg-app-nginx
 
 jobs:
-  deploy:
+  build:
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push Backend image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./backend
+          file: ./backend/Dockerfile
+          push: true
+          tags: ${{ env.DOCKERHUB_USERNAME }}/${{ env.BACKEND_IMAGE_NAME }}:latest
+
+      - name: Build and push Nginx image
+        uses: docker/build-push-action@v5
+        with:
+          context: . # Контекст сборки - корень
+          file: ./Dockerfile.nginx
+          push: true
+          tags: ${{ env.DOCKERHUB_USERNAME }}/${{ env.NGINX_IMAGE_NAME }}:latest
+
+  deploy:
+    needs: build # Запускать только после успешной сборки
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
       - name: Deploy to server
         uses: appleboy/ssh-action@master
         with:
-          host: ${{ secrets.SSH_HOST }} # IP твоего сервера
-          username: ${{ secrets.SSH_USERNAME }} # Имя пользователя (например, root)
-          key: ${{ secrets.SSH_PRIVATE_KEY }} # Приватный SSH ключ
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
-            cd /path/to/your/project/backend 
-            git pull
-            npm install
-            pm2 restart index # Или pm2 reload index
+            # Переходим в рабочую директорию
+            cd /root/my-tg-app
+
+            # Копируем свежие docker-compose и .env файлы
+            # Мы не можем просто скопировать, поэтому создаем их из контента
+            echo '${{ secrets.ENV_FILE_CONTENT }}' > .env.prod
+            echo '${{ secrets.COMPOSE_PROD_YML_CONTENT }}' > docker-compose.prod.yml
+
+            # Экспортируем переменную для docker-compose
+            export DOCKERHUB_USERNAME=${{ secrets.DOCKERHUB_USERNAME }}
+
+            # Скачиваем последнюю версию образов
+            docker-compose -f docker-compose.prod.yml pull
+
+            # Поднимаем сервисы в фоновом режиме.
+            # Docker-compose сам пересоздаст только те контейнеры, чьи образы обновились.
+            docker-compose -f docker-compose.prod.yml up -d --remove-orphans
+
+            # Очищаем старые неиспользуемые образы
+            docker image prune -af
