@@ -40,9 +40,6 @@ jobs:
           file: ./Dockerfile.nginx
           push: true
           tags: ${{ env.DOCKERHUB_USERNAME }}/${{ env.NGINX_IMAGE_NAME }}:latest
-          # 🔥🔥🔥 ГЛАВНЫЙ ФИКС: Отключаем кэш для этой сборки 🔥🔥🔥
-          # Это заставит GitHub Actions собрать фронтенд с нуля, используя твои последние изменения.
-          no-cache: true
 
   deploy:
     needs: build
