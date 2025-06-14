@@ -1,4 +1,4 @@
-# ./docker-compose.prod.yml
+# ./docker-compose.prod.yml (ИСПРАВЛЕННАЯ ВЕРСИЯ)
 version: '3.8'
 
 services:
@@ -9,10 +9,12 @@ services:
       - mongo_data:/data/db
     networks:
       - app-network
-    env_file: .env.prod # Переменные для mongo тоже в env
+    # ✅ Убрали env_file, передаем переменные явно. Так чище.
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_USER}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASSWORD}
 
   backend:
-    # Имя образа, которое мы будем пушить в CI/CD
     image: ${DOCKERHUB_USERNAME}/my-tg-app-backend:latest
     restart: always
     env_file: .env.prod
@@ -22,7 +24,6 @@ services:
       - app-network
 
   nginx:
-    # Имя образа, которое мы будем пушить в CI/CD
     image: ${DOCKERHUB_USERNAME}/my-tg-app-nginx:latest
     restart: always
     ports:
@@ -35,14 +36,19 @@ services:
       - backend
     networks:
       - app-network
+    # ❌ УБИРАЕМ СЛОЖНУЮ КОМАНДУ. Nginx сам знает, как ему запускаться.
+    # ✅ НОВАЯ КОМАНДА: Сигнал для nginx перезагрузить конфиг.
+    command: /bin/sh -c 'nginx -g "daemon off;"'
 
   certbot:
     image: certbot/certbot
-    restart: unless-stopped
+    # ❌ УДАЛЯЕМ entrypoint с циклом.
+    # ✅ ДОБАВЛЯЕМ ПРАВИЛЬНУЮ КОМАНДУ для получения и обновления сертификата.
+    command: certonly --webroot --webroot-path=/var/www/certbot --email hitomi.jpeg@gmail.com -d ariyapoizon.ru --agree-tos --no-eff-email --force-renewal
+    # 👆 ЗАМЕНИ ТВОЯ@ПОЧТА.COM и твой-домен.ru на свои реальные данные.
     volumes:
       - ./certbot/conf:/etc/letsencrypt
       - ./certbot/www:/var/www/certbot
-    entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew; sleep 12h & wait $${!}; done;'"
 
 volumes:
   mongo_data:
