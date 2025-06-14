@@ -86,10 +86,6 @@ async function startServer() {
     bot.botInfo = await bot.telegram.getMe();
     logger.info(`✅ Информация о боте получена: @${bot.botInfo.username}`);
     
-    if (WEBAPP_URL) {
-      await bot.telegram.setChatMenuButton({ menu_button: { type: "web_app", text: "Открыть магазин", web_app: { url: WEBAPP_URL } } });
-      logger.info("✅ Chat Menu Button успешно установлен");
-    }
     
     server = app.listen(3001, () => {
       logger.info("🚀 Сервер запущен на http://localhost:3001");
