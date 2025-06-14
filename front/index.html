@@ -6,22 +6,17 @@
     <link rel="manifest" href="/manifest.json" />
     <meta name="theme-color" content="#0a0a0a">
 
-    <!-- Apple-специфичные теги -->
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Ariya App">
     <link rel="apple-touch-icon" href="/apple-touch-icon.png">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
 
-    <!-- Ставим сюда билд-версию -->
-    <meta name="build-version" content="__BUILD_VERSION__">
-
-    <!-- Внешние библиотеки грузим заранее -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
-
     <title>Ariya App</title>
   </head>
   <body>
     <div id="root"></div>
+    <!-- ✅ Vite сам вставит сюда правильные final <script> и <link> при build -->
   </body>
 </html>
