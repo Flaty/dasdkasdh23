@@ -12,18 +12,16 @@
     <meta name="apple-mobile-web-app-title" content="Ariya App">
     <link rel="apple-touch-icon" href="/apple-touch-icon.png">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
-    
-    <!-- ✅ УБИРАЕМ ОТСЮДА СКРИПТ, ОН ДОЛЖЕН БЫТЬ В КОНЦЕ BODY -->
-    
-    <!-- Внешние библиотеки грузим здесь, это нормально -->
+
+    <!-- Ставим сюда билд-версию -->
+    <meta name="build-version" content="__BUILD_VERSION__">
+
+    <!-- Внешние библиотеки грузим заранее -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
+
     <title>Ariya App</title>
   </head>
   <body>
     <div id="root"></div>
-    
-    <!-- ✅ ВОТ ЕДИНСТВЕННОЕ ПРАВИЛЬНОЕ МЕСТО ДЛЯ ТВОЕГО ГЛАВНОГО СКРИПТА -->
-    <!-- Браузер сначала отрисует HTML (скелет), а потом начнет выполнять тяжелый JS -->
-    <script type="module" src="/src/main.tsx?v=__BUILD_VERSION__"></script>
   </body>
 </html>
