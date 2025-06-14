@@ -1,18 +1,22 @@
-# ./Dockerfile.nginx
-
 # --- STAGE 1: Build Frontend ---
-FROM node:18-alpine AS frontend-builder
+FROM node:20-alpine AS frontend-builder
 WORKDIR /app
+
+# Сначала только package.json (для кеша)
 COPY front/package*.json ./
 RUN npm ci
+
+# Только потом остальной код (чтобы кеш адекватно работал при изменении кода)
 COPY front/ ./
 RUN npm run build
 
-# --- STAGE 2: Final Nginx Image ---
+# --- STAGE 2: Nginx ---
 FROM nginx:alpine
-# Копируем собранный фронтенд из первого стейджа
 COPY --from=frontend-builder /app/dist /usr/share/nginx/html
-# Копируем конфиг nginx
 COPY nginx.conf /etc/nginx/conf.d/default.conf
+
+# Опционально врубим хорошую gzip компрессию (можно добавить)
+RUN apk add --no-cache brotli
+
 EXPOSE 80 443
 CMD ["nginx", "-g", "daemon off;"]
