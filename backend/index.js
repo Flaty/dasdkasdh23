@@ -50,7 +50,7 @@ app.use('/api', rateLimit({
 }));
 
 // === 3. ПОДКЛЮЧЕНИЕ К БАЗЕ ===
-mongoose.connect(DATABASE_URL || "mongodb://127.0.0.1:27017/orders")
+mongoose.connect(DATABASE_URL || "mongodb://mongo:27017/orders")
   .then(() => logger.info("✅ MongoDB подключена"))
   .catch((err) => logger.error({ err }, "❌ Ошибка подключения к MongoDB"));
 mongoose.connection.on('error', err => logger.error({ err }, '❌ Ошибка соединения с MongoDB'));
