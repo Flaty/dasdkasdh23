@@ -51,9 +51,12 @@ async function startApp() {
     let userDataForApp: any = null;
 
     if (tg && tg.initData) {
-      // --- ЛОГИКА ДЛЯ TELEGRAM WEB APP ---
       tg.ready();
-      tg.expand();
+
+      // Даем Webview 50 миллисекунд на то, чтобы прийти в себя перед расширением
+      setTimeout(() => {
+        tg.expand();
+      }, 50);
       tg.setHeaderColor('#0a0a0a');
       tg.setBackgroundColor('#0a0a0a');
       
