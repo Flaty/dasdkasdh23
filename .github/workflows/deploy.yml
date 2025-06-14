@@ -1,4 +1,3 @@
-# .github/workflows/deploy.yml
 name: Build and Deploy to Production
 
 on:
@@ -37,18 +36,15 @@ jobs:
       - name: Build and push Nginx image
         uses: docker/build-push-action@v5
         with:
-          context: . # Контекст сборки - корень
+          context: .
           file: ./Dockerfile.nginx
           push: true
           tags: ${{ env.DOCKERHUB_USERNAME }}/${{ env.NGINX_IMAGE_NAME }}:latest
 
   deploy:
-    needs: build # Запускать только после успешной сборки
+    needs: build
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
       - name: Deploy to server
         uses: appleboy/ssh-action@master
         with:
@@ -56,23 +52,13 @@ jobs:
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
-            # Переходим в рабочую директорию
             cd /root/my-tg-app
 
-            # Копируем свежие docker-compose и .env файлы
-            # Мы не можем просто скопировать, поэтому создаем их из контента
-            echo '${{ secrets.ENV_FILE_CONTENT }}' > .env.prod
-            echo '${{ secrets.COMPOSE_PROD_YML_CONTENT }}' > docker-compose.prod.yml
+            echo "${{ secrets.ENV_FILE_CONTENT }}" > .env.prod
+            echo "${{ secrets.COMPOSE_PROD_YML_CONTENT }}" > docker-compose.prod.yml
 
-            # Экспортируем переменную для docker-compose
-            export DOCKERHUB_USERNAME=${{ secrets.DOCKERHUB_USERNAME }}
+            export $(grep -v '^#' .env.prod | xargs)
 
-            # Скачиваем последнюю версию образов
             docker-compose -f docker-compose.prod.yml pull
-
-            # Поднимаем сервисы в фоновом режиме.
-            # Docker-compose сам пересоздаст только те контейнеры, чьи образы обновились.
             docker-compose -f docker-compose.prod.yml up -d --remove-orphans
-
-            # Очищаем старые неиспользуемые образы
             docker image prune -af
