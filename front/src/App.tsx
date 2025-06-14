@@ -1,4 +1,4 @@
-// src/App.tsx
+// src/App.tsx - ПОСЛЕДНЯЯ ВЕРСИЯ
 import { useState, useEffect } from "react";
 import { Routes, Route, useLocation, Navigate } from "react-router-dom";
 import { AnimatePresence } from "framer-motion";
@@ -41,11 +41,15 @@ export default function App() {
         return;
       }
       
+      // 🔥🔥🔥 ФИНАЛЬНЫЙ ФИКС ШТОРКИ 🔥🔥🔥
+      // СНАЧАЛА отдаем команды UI, которые должны выполниться МГНОВЕННО.
       tg.ready();
+      tg.expand(); // <--- САМАЯ ГЛАВНАЯ КОМАНДА. ВЫЗЫВАЕМ СРАЗУ.
       tg.setHeaderColor('#0a0a0a');
       tg.setBackgroundColor('#0a0a0a');
       tg.enableClosingConfirmation();
 
+      // А ПОТОМ уже начинаем асинхронную работу с сетью.
       try {
         const response = await fetch('/api/auth/verify', {
           method: 'POST',
@@ -59,10 +63,6 @@ export default function App() {
         localStorage.setItem('jwt_token', data.token);
         
         setUserData(tg.initDataUnsafe.user);
-
-        // 🔥🔥🔥 ВЫЗЫВАЕМ EXPAND ЗДЕСЬ! 🔥🔥🔥
-        // После всех проверок, когда мы уверены, что React сейчас отрисует приложение.
-        requestAnimationFrame(() => tg.expand());
 
       } catch (e: unknown) {
         console.error("Критическая ошибка инициализации:", e);
