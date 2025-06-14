@@ -34,13 +34,14 @@ services:
       - backend
     networks:
       - app-network
-    # Просто запускаем nginx, он будет слушать 80 порт согласно nginx.conf
+    # Nginx просто запускается. Он подхватит сертификаты из volume.
     command: nginx -g 'daemon off;'
 
   certbot:
     image: certbot/certbot
-    # Эта команда запустится, получит сертификат для домена и завершится
-    command: certonly --webroot --webroot-path=/var/www/certbot --email hitomi.jpeg@gmail.com -d ariyapoizon.ru --agree-tos --no-eff-email --force-renewal
+    # ✅ ГЛАВНЫЙ ФИКС ДЛЯ АВТООБНОВЛЕНИЯ
+    # Эта команда будет жить вечно и раз в 12 часов пытаться обновить сертификат.
+    command: sh -c "while :; do certbot renew --quiet; sleep 12h; done"
     volumes:
       - ./certbot/conf:/etc/letsencrypt
       - ./certbot/www:/var/www/certbot
