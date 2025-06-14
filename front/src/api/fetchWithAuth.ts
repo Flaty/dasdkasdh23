@@ -60,3 +60,23 @@ export async function getJSON<T>(url: string): Promise<T> {
     }
     return response.json();
 }
+
+/**
+ * Упрощенная версия для POST-запросов с автоматическим JSON и авторизацией.
+ * @param url - Путь к API
+ * @param body - Объект, который будет отправлен как JSON
+ * @returns - Промис с распарсенными данными
+ */
+export async function postJSON<T>(url: string, body: any): Promise<T> {
+  const response = await fetchWithAuth(url, {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
+
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(`Ошибка POST: ${response.status} — ${text}`);
+  }
+
+  return response.json();
+}

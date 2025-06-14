@@ -1,5 +1,5 @@
 // src/components/MapSelectorController.tsx
-import { Suspense, lazy, useMemo } from "react"; // ✅ Импортируем useMemo
+import { Suspense, lazy, useMemo } from "react";
 import MapSkeleton from "./MapSkeleton";
 
 const LazyYandexMap = lazy(() => import("./YandexMap"));
@@ -15,7 +15,8 @@ interface PickupPoint {
 }
 
 interface Props {
-  cityCode: string;
+  // ✅ ФИКС: Принимаем cityCode как число
+  cityCode: number;
   pickupPoints: PickupPoint[];
   selectedPoint: Point | null;
   onPointSelect: (point: { code: string, address: string, coords: [number, number] }) => void;
@@ -25,26 +26,23 @@ export default function MapSelectorController({
   cityCode, pickupPoints, selectedPoint, onPointSelect
 }: Props) {
 
+  // Проверяем, что cityCode - это валидное число больше нуля
   if (!cityCode || !pickupPoints?.length) {
     return <MapSkeleton />;
   }
 
-  // 🔥🔥🔥 ГЛАВНЫЙ ФИКС ВСЕЙ НАШЕЙ ЭПОПЕИ 🔥🔥🔥
-  // Мы мемоизируем массив `mapPoints`.
-  // Он будет пересоздаваться ТОЛЬКО тогда, когда изменится `pickupPoints` (т.е. при смене города).
-  // При всех остальных ре-рендерах (клик на метку) `useMemo` вернет старую версию массива.
   const mapPoints = useMemo(() => {
     return pickupPoints.map((p) => ({
       coords: [p.location.latitude, p.location.longitude] as [number, number],
       label: p.location.address,
       code: p.code,
     }));
-  }, [pickupPoints]); // ✅ Зависимость - только исходные данные.
+  }, [pickupPoints]);
 
   return (
     <Suspense fallback={<MapSkeleton />}>
       <LazyYandexMap
-        points={mapPoints} // Теперь сюда всегда приходит стабильный проп
+        points={mapPoints}
         onSelect={onPointSelect}
         selectedCode={selectedPoint?.code || null}
       />

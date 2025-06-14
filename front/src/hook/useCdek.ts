@@ -1,11 +1,14 @@
-// src/hooks/useCdek.ts
+// src/hook/useCdek.ts
+
 import { useQuery } from '@tanstack/react-query';
+import { fetchWithAuth } from '../api/fetchWithAuth'; // ✅ Используем наш авторизованный fetch на всякий случай
 
 // --- Типы данных ---
 export interface SuggestedCity {
   city: string;
   region: string;
-  code: string;
+  // ✅ ГЛАВНЫЙ ФИКС №1: Код города - это число
+  code: number;
 }
 
 export interface PickupPoint {
@@ -20,14 +23,16 @@ export interface PickupPoint {
 // --- Функции для запросов ---
 const fetchCities = async (query: string): Promise<SuggestedCity[]> => {
   if (!query) return [];
-  const response = await fetch(`/api/cdek/cities?city=${encodeURIComponent(query)}`);
+  // Используем fetchWithAuth, это хорошая практика
+  const response = await fetchWithAuth(`/api/cdek/cities?city=${encodeURIComponent(query)}`);
   if (!response.ok) throw new Error('Ошибка поиска городов');
   return response.json();
 };
 
-const fetchPickupPoints = async (cityCode: string): Promise<PickupPoint[]> => {
+// ✅ ГЛАВНЫЙ ФИКС №2: Функция принимает cityCode как число
+const fetchPickupPoints = async (cityCode: number): Promise<PickupPoint[]> => {
   if (!cityCode) return [];
-  const response = await fetch(`/api/cdek/pvz?city_code=${cityCode}`);
+  const response = await fetchWithAuth(`/api/cdek/pvz?city_code=${cityCode}`);
   if (!response.ok) throw new Error('Ошибка загрузки ПВЗ');
   return response.json();
 };
@@ -38,16 +43,18 @@ export function useCitySuggestions(query: string) {
   return useQuery({
     queryKey: ['cdek_cities', query],
     queryFn: () => fetchCities(query),
-    enabled: !!query, // Запрос активен только когда есть поисковый запрос
-    staleTime: 1000 * 60 * 5, // Кешируем результаты на 5 минут
+    enabled: !!query,
+    staleTime: 1000 * 60 * 5,
   });
 }
 
-export function usePickupPoints(cityCode: string) {
+// ✅ ГЛАВНЫЙ ФИКС №3: Хук принимает cityCode как число
+export function usePickupPoints(cityCode: number) {
   return useQuery({
     queryKey: ['cdek_pvz', cityCode],
     queryFn: () => fetchPickupPoints(cityCode),
-    enabled: !!cityCode, // Запрос активен только когда выбран код города
-    staleTime: 1000 * 60 * 10, // Кешируем ПВЗ на 10 минут
+    // Запрос активен только если cityCode - валидное число больше 0
+    enabled: !!cityCode && cityCode > 0,
+    staleTime: 1000 * 60 * 10,
   });
 }

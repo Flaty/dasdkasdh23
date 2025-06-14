@@ -78,3 +78,4 @@ export type CreateOrderPayload = {
   rawPoizonPrice: number;
   address: Omit<UserAddress, 'userId'>; // Для чистоты можно убрать userId, но и так сойдет
 };
+

@@ -2,12 +2,11 @@
 
 import { useEffect, useState, useMemo, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { useQueryClient } from "@tanstack/react-query";
 import { MapPinIcon, TruckIcon, BuildingStorefrontIcon, PencilIcon } from "@heroicons/react/24/outline";
 
 import BottomSheet, { type BottomSheetHandle } from "./BottomSheet";
 import MapSelectorController from "./MapSelectorController";
-import { useAddress, type UserAddress } from "../hook/useAddress";
+import { useAddress, type UserAddress } from "../hook/useAddress"; // Импортируем наш новый хук и тип
 import { useCitySuggestions, usePickupPoints, type SuggestedCity } from "../hook/useCdek";
 import SpinnerIcon from "./SpinnerIcon";
 import MapSkeleton from "./MapSkeleton";
@@ -29,46 +28,54 @@ const motionProps = {
   transition: { duration: 0.2, ease: "easeInOut" },
 };
 
+const EMPTY_ADDRESS: UserAddress = {
+  userId: 0, name: '', phone: '', city: '', city_code: 0, street: '',
+  deliveryType: 'pickup', pickupCode: '', pickupAddress: ''
+};
+
 export default function AddressEditor({ userId, open, onClose }: Props) {
   const { addressData, saveAddress, isSavingAddress, isLoadingAddress } = useAddress(userId);
   const sheetRef = useRef<BottomSheetHandle>(null);
-  const queryClient = useQueryClient();
 
   const [mode, setMode] = useState<EditorMode>('idle');
-  const [view, setView] = useState<ViewState>('form'); // ✅ НОВОЕ СОСТОЯНИЕ: 'form' или 'map'
+  const [view, setView] = useState<ViewState>('form');
   
-  const [formData, setFormData] = useState<UserAddress>(addressData);
-  const [cityQuery, setCityQuery] = useState(addressData.city);
+  // ✅ ГЛАВНЫЙ ФИКС: formData - это наше ЛОКАЛЬНОЕ состояние формы.
+  const [formData, setFormData] = useState<UserAddress>(EMPTY_ADDRESS);
+  const [cityQuery, setCityQuery] = useState('');
   const [selectedPointCode, setSelectedPointCode] = useState<string | null>(null);
 
   useEffect(() => {
-    if (open) {
+    // Этот эффект СИНХРОНИЗИРУЕТ форму с данными с сервера ТОЛЬКО ОДИН РАЗ, когда данные загрузились.
+    if (addressData) {
       setFormData(addressData);
       setCityQuery(addressData.city);
       setSelectedPointCode(addressData.pickupCode || null);
-      
-      if (!addressData.city || (addressData.deliveryType === 'address' && !addressData.street) || (addressData.deliveryType === 'pickup' && !addressData.pickupCode)) {
+      // Определяем начальный режим
+      if (!addressData.city) {
         setMode('editing');
-        setView('form'); // Начинаем с формы
       } else {
         setMode('idle');
-        setView('form');
       }
+    } else if (open) {
+      // Если данных нет, но шторка открыта, начинаем с пустого редактирования
+      setFormData({ ...EMPTY_ADDRESS, userId });
+      setMode('editing');
     }
-  }, [open, addressData]);
+  }, [addressData, open, userId]);
   
   const { data: suggestedCities } = useCitySuggestions(cityQuery);
   const { data: pickupPoints, isLoading: isLoadingPoints } = usePickupPoints(formData.city_code);
 
-  const handleSave = async () => {
-    const ok = await saveAddress(formData);
+   const handleSave = async () => {
+    // Передаем в post-запрос userId из пропсов
+    const ok = await saveAddress({ ...formData, userId });
     if (ok) {
-      await queryClient.invalidateQueries({ queryKey: ['profile'] });
       setMode('idle');
-      setView('form');
-      sheetRef.current?.dismiss();
+      onClose(); // Просто вызываем onClose, шторка закроется сама
     }
   };
+  
 
   const isSaveDisabled = useMemo(() => {
     if (isSavingAddress) return true;
