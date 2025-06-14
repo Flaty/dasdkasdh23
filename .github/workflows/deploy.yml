@@ -53,10 +53,12 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
             cd /root/my-tg-app
+            if [ -z "${{ secrets.ENV_FILE_CONTENT }}" ]; then echo "ERROR: Secret ENV_FILE_CONTENT is empty!" >&2; exit 1; fi
+            if [ -z "${{ secrets.COMPOSE_PROD_YML_CONTENT }}" ]; then echo "ERROR: Secret COMPOSE_PROD_YML_CONTENT is empty!" >&2; exit 1; fi
 
             echo "${{ secrets.ENV_FILE_CONTENT }}" > .env.prod
             echo "${{ secrets.COMPOSE_PROD_YML_CONTENT }}" > docker-compose.prod.yml
-            docker-compose --env-file .env.prod -f docker-compose.prod.yml pull
 
+            docker-compose --env-file .env.prod -f docker-compose.prod.yml pull
             docker-compose --env-file .env.prod -f docker-compose.prod.yml up -d --remove-orphans
             docker image prune -af
