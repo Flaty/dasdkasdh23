@@ -45,7 +45,8 @@ export default function App() {
       // СНАЧАЛА отдаем команды UI, которые должны выполниться МГНОВЕННО.
       tg.ready();
       tg.expand(); // <--- САМАЯ ГЛАВНАЯ КОМАНДА. ВЫЗЫВАЕМ СРАЗУ.
-      tg.setHeaderColor('secondary_bg_color');
+      tg.setHeaderColor('secondary_bg_color'); 
+      tg.setBackgroundColor('secondary_bg_color');
       tg.setBackgroundColor('#0a0a0a');
       tg.enableClosingConfirmation();
 
