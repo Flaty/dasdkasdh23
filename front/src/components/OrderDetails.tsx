@@ -3,6 +3,7 @@
 import { CheckIcon, ClockIcon, MessageSquare } from 'lucide-react';
 // ✨ 1. ИМПОРТИРУЕМ НАШ ГЛАВНЫЙ ТИП ЗАКАЗА
 import type { Order } from '../utils/types';
+import { haptic } from '../utils/haptic';
 
 // Константы выносим за пределы компонента
 const statusPipeline = [
@@ -61,7 +62,7 @@ export default function OrderDetails({ order }: OrderDetailsProps) {
             href={`https://t.me/Littleton59?text=Здравствуйте, у меня вопрос по отклонённому заказу №${displayId}`}
             target="_blank" 
             rel="noopener noreferrer"
-            onClick={() => { if (navigator.vibrate) navigator.vibrate(20); }}
+            onClick={() => haptic.light()}
             className="w-full flex items-center justify-center gap-2 text-sm font-medium text-white rounded-xl py-3 bg-red-500/20 border border-red-400/40 hover:bg-red-500/30 transition-colors"
           >
             <MessageSquare className="w-4 h-4" />
@@ -107,7 +108,7 @@ export default function OrderDetails({ order }: OrderDetailsProps) {
           href={`https://t.me/Littleton59?text=Здравствуйте, у меня вопрос по заказу №${displayId}`}
           target="_blank" 
           rel="noopener noreferrer"
-          onClick={() => { if (navigator.vibrate) navigator.vibrate(20); }}
+          onClick={() => haptic.light()}
           className="w-full flex items-center justify-center gap-2 text-sm font-medium text-white rounded-xl py-3 bg-white/5 border border-white/10 hover:bg-white/10 transition-colors"
         >
           <MessageSquare className="w-4 h-4" />

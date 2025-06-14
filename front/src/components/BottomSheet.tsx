@@ -4,6 +4,7 @@ import { AnimatePresence, motion, useDragControls, useMotionValue, animate } fro
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import type { ReactNode } from "react";
+import { haptic } from "../utils/haptic";
 
 export interface BottomSheetHandle {
   dismiss: () => void;
@@ -38,7 +39,7 @@ const BottomSheet = forwardRef<BottomSheetHandle, BottomSheetProps>(
     }, [open]);
     
     const dismiss = () => {
-      if (navigator.vibrate) navigator.vibrate(10);
+      haptic.light();
       setIsVisible(false);
     };
 

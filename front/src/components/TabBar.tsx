@@ -4,6 +4,7 @@ import { User, Package, Calculator } from "lucide-react";
 import { useCustomNavigate } from "../utils/useCustomNavigate";
 import { motion } from "framer-motion";
 import { useState, useRef } from "react";
+import { haptic } from "../utils/haptic";
 
 const tabs = [
   { to: "/profile", label: "Профиль", icon: User },
@@ -77,9 +78,7 @@ export default function TabBar() {
               if (isActive) return;
               
               // Haptic feedback
-              if (navigator.vibrate) {
-                navigator.vibrate([5, 2, 5]);
-              }
+              haptic.light();
               
               // Микро-задержка для анимации
               setTimeout(() => {

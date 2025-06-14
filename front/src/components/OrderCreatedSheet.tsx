@@ -5,6 +5,7 @@ import { motion } from "framer-motion";
 import BottomSheet, { type BottomSheetHandle } from "./BottomSheet";
 import { CheckCircleIcon, ChatBubbleLeftRightIcon, ClockIcon, ShieldCheckIcon } from "@heroicons/react/24/outline";
 import { InteractiveButton } from "./ui/InteractiveButton";
+import { haptic } from '../utils/haptic';
 
 interface OrderCreatedSheetProps {
   open: boolean;
@@ -27,7 +28,7 @@ export default function OrderCreatedSheet({
 
   const handleContactManager = () => {
     // Haptic feedback для важного действия
-    if (navigator.vibrate) navigator.vibrate([50, 30, 50]);
+    haptic.medium();
     
     // Открываем Telegram
     window.open(`https://t.me/Littleton59?text=Здравствуйте! Хочу оплатить заказ №${orderId}`, "_blank");

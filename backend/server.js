@@ -1,13 +1,11 @@
 // backend/server.js
 import mongoose from "mongoose";
-import app, { bot, logger } from './app.js'; // Импортируем готовое приложение
+import app, { bot, logger } from './app.js';
 
-// Импорты для логики бота
-import Order from './models/Order.js'; 
+import Order from './models/Order.js';
 import { Markup } from 'telegraf';
-import { statusLabels, escapeMarkdown } from './utils/botHelpers.js'; // Предположим, ты вынесешь хелперы сюда
+import { statusLabels, escapeMarkdown } from './utils/botHelpers.js';
 
-// --- Проверка переменных ---
 const { MANAGER_CHAT_ID, WEBAPP_URL, JWT_SECRET, DATABASE_URL, PORT = 3001 } = process.env;
 
 if (!JWT_SECRET || !bot.token || !MANAGER_CHAT_ID) {
@@ -15,7 +13,6 @@ if (!JWT_SECRET || !bot.token || !MANAGER_CHAT_ID) {
   process.exit(1);
 }
 
-// --- Подключение к БД ---
 mongoose.connect(DATABASE_URL || "mongodb://127.0.0.1:27017/orders")
   .then(() => logger.info("✅ MongoDB подключена"))
   .catch((err) => logger.error({ err }, "❌ Ошибка подключения к MongoDB"));
@@ -24,11 +21,20 @@ mongoose.connection.on('disconnected', () => logger.warn('MongoDB отключе
 
 
 // --- Логика Telegram Bot ---
-// (Логика бота остается здесь, так как она тесно связана с жизненным циклом сервера)
+
+// 🔥🔥🔥 ВОТ ОН, ФИНАЛЬНЫЙ ФИКС 🔥🔥🔥
 bot.command('start', (ctx) => {
-  if (!WEBAPP_URL) return ctx.reply('Извините, магазин временно недоступен.');
-  ctx.reply('Добро пожаловать!', Markup.inlineKeyboard([Markup.button.webApp('🛍️ Открыть магазин', WEBAPP_URL)]));
+  if (!WEBAPP_URL) {
+    return ctx.reply('Извините, магазин временно недоступен.');
+  }
+  // Просто приветствуем пользователя и даем инструкцию.
+  // Никаких лишних кнопок, которые вызывают шторку.
+  ctx.reply(
+    '<b>Добро пожаловать!</b>\n\nЧтобы открыть магазин, нажмите на кнопку "Открыть магазин" в меню.',
+    { parse_mode: 'HTML' }
+  );
 });
+
 bot.on("callback_query", async (ctx) => {
   const data = ctx.callbackQuery.data;
   if (!data.startsWith('status_')) return ctx.answerCbQuery();
@@ -56,36 +62,24 @@ bot.on("callback_query", async (ctx) => {
 
 
 // --- Запуск сервера и Graceful Shutdown ---
-// === 6. ОБРАБОТЧИКИ ОШИБОК И GRACEFUL SHUTDOWN ===
-
 let server;
 const shutdown = async (signal) => {
   logger.info(`${signal} received, shutting down gracefully`);
-  
-  // 1. Останавливаем бота, чтобы он не принимал новые сообщения
   bot.stop(signal);
-  
-  // 2. Закрываем сервер, чтобы он не принимал новые HTTP запросы
   if (server) {
     server.close(async () => {
       logger.info('✅ HTTP сервер закрыт');
-      
-      // 3. После закрытия сервера отключаемся от базы
       await mongoose.connection.close(false);
       logger.info('✅ Соединение с MongoDB закрыто');
-      
-      // 4. Выходим из процесса
       process.exit(0);
     });
   } else {
-    // Если сервер еще не запустился, просто выходим
     process.exit(0);
   }
 };
 process.on('SIGTERM', () => shutdown('SIGTERM'));
 process.on('SIGINT', () => shutdown('SIGINT'));
 
-// === 7. ЗАПУСК ===
 async function startServer() {
   try {
     logger.info("ℹ️ Получаем информацию о боте...");

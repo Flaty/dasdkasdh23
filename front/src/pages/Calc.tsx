@@ -14,6 +14,7 @@ import BottomSheetSelector from "../components/BottomSheetSelector";
 import OrderCreatedSheet from "../components/OrderCreatedSheet";
 import { ShoppingBagIcon, TruckIcon, CubeIcon, TagIcon } from "@heroicons/react/24/outline";
 import SpinnerIcon from "../components/SpinnerIcon";
+import { haptic } from "../utils/haptic";
 
 type CalcStatus = 'idle' | 'calculating' | 'calculated' | 'error' | 'submitting' | 'submitted';
 
@@ -132,7 +133,7 @@ export default function Calc() {
       });
 
       // ✅ Сохраняем ID созданного заказа
-      if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
+      haptic.success();
       dispatch({ type: 'SUBMIT_SUCCESS' });
       
       // ✅ Открываем боттом-шит с информацией о заказе
@@ -142,7 +143,7 @@ export default function Calc() {
       localStorage.setItem('unpaidOrderStatus', 'awaiting_payment');
 
     } catch (err) {
-      if (navigator.vibrate) navigator.vibrate([100, 50, 100, 50, 100]);
+      haptic.error();
       toast(err instanceof Error ? err.message : "❌ Ошибка при оформлении заказа");
       dispatch({ type: 'FIELD_CHANGE', payload: { status: 'calculated' } });
     }

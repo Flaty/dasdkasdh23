@@ -12,6 +12,7 @@ import ProfileSkeleton from "../components/ProfileSkeleton";
 import { formatDistanceToNowStrict } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import type { Achievement } from '../utils/types'; 
+import { haptic } from "../utils/haptic";
 import { MessageSquareQuote, Gem, MapPin, Handshake, ChevronRightIcon, Package, Gift, Trophy, Award, Flame, ReceiptText } from 'lucide-react';
 
 // --- Хелперы ---
@@ -97,7 +98,7 @@ export default function Profile() {
     if (navigator.clipboard && profile?.referral_info.link) {
       navigator.clipboard.writeText(profile.referral_info.link);
       // ✅ Haptic Feedback: Успешное действие
-      if (navigator.vibrate) navigator.vibrate(50); 
+      haptic.success();
       ('Ссылка для друга скопирована!');
     }
   }
@@ -178,7 +179,7 @@ export default function Profile() {
         <ProfileCard title="Адрес доставки (СДЭК)" 
           subtitle={formatAddressPreview(profile.address)} 
           onClick={() => {
-            if (navigator.vibrate) navigator.vibrate(20); // ✅ Haptic Feedback: легкий клик
+            haptic.light(); // ✅ Haptic Feedback: легкий клик
             setAddressOpen(true);
           }} 
           icon={<MapPin className="w-4 h-4 text-neutral-400" />} />

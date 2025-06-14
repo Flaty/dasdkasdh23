@@ -1,75 +1,49 @@
 // src/utils/haptic.ts
 
-/**
- * Haptic feedback utilities для современных мобильных приложений
- * Следует принципам Apple HIG и Material Design
- */
+// Получаем доступ к API, делаем это один раз
+const HapticFeedback = window.Telegram?.WebApp?.HapticFeedback;
 
+// Наш объект-сервис. Если API недоступно, все функции будут просто пустышками.
 export const haptic = {
-  /**
-   * Легкая вибрация для обычных взаимодействий
-   * Используется: нажатие кнопок, переключение табов
-   */
+  /** Легкий щелчок. Для выбора, переключения табов. */
   light: () => {
-    if (typeof window !== 'undefined' && 'vibrate' in navigator) {
-      navigator.vibrate(10)
+    if (HapticFeedback) {
+      HapticFeedback.impactOccurred('light');
     }
   },
 
-  /**
-   * Средняя вибрация для важных действий  
-   * Используется: отправка формы, добавление в корзину
-   */
+  /** Средний толчок. Для подтверждения действия (нажатие кнопки). */
   medium: () => {
-    if (typeof window !== 'undefined' && 'vibrate' in navigator) {
-      navigator.vibrate(15)
+    if (HapticFeedback) {
+      HapticFeedback.impactOccurred('medium');
     }
   },
 
-  /**
-   * Вибрация успеха
-   * Используется: успешная отправка, сохранение
-   */
-  success: () => {
-    if (typeof window !== 'undefined' && 'vibrate' in navigator) {
-      navigator.vibrate([10, 5, 10])
-    }
-  },
-
-  /**
-   * Вибрация ошибки
-   * Используется: ошибки валидации, сетевые ошибки
-   */
-  error: () => {
-    if (typeof window !== 'undefined' && 'vibrate' in navigator) {
-      navigator.vibrate([25, 10, 25])
-    }
-  },
-
-  /**
-   * Длинная вибрация для критичных действий
-   * Используется: удаление, критичные подтверждения
-   */
+  /** Сильный удар. Для важных, завершающих действий. */
   heavy: () => {
-    if (typeof window !== 'undefined' && 'vibrate' in navigator) {
-      navigator.vibrate(25)
+    if (HapticFeedback) {
+      HapticFeedback.impactOccurred('heavy');
+    }
+  },
+
+  /** Сигнал об успешном завершении операции. */
+  success: () => {
+    if (HapticFeedback) {
+      HapticFeedback.notificationOccurred('success');
+    }
+  },
+
+  /** Сигнал об ошибке. */
+  error: () => {
+    if (HapticFeedback) {
+      HapticFeedback.notificationOccurred('error');
+    }
+  },
+
+  /** Сигнал-предупреждение. */
+  warning: () => {
+     if (HapticFeedback) {
+      HapticFeedback.notificationOccurred('warning');
     }
   }
-}
-
-/**
- * Проверка поддержки вибрации устройством
- */
-export const isHapticSupported = (): boolean => {
-  return typeof window !== 'undefined' && 'vibrate' in navigator
-}
-
-/**
- * Хук для использования в React компонентах
- */
-export const useHaptic = () => {
-  return {
-    ...haptic,
-    isSupported: isHapticSupported()
-  }
-}
+};

@@ -2,6 +2,7 @@
 
 import { useRef, useState, type ReactNode } from "react";
 import BottomSheet, { type BottomSheetHandle } from "./BottomSheet";
+import { haptic } from "../utils/haptic";
 
 export interface Option {
   label: ReactNode;
@@ -32,7 +33,7 @@ export default function BottomSheetSelector({
   const selected = options.find((o) => o.value === value);
 
   const handleSelect = (val: string) => {
-    if (navigator.vibrate) navigator.vibrate(20); // ✅ Легкий импульс при выборе
+    haptic.light();// ✅ Легкий импульс при выборе
     setValue(val);
     sheetRef.current?.dismiss();
   };
