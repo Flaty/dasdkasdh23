@@ -17,7 +17,7 @@ type ViewState = 'form' | 'map'; // Новое состояние для упр�
 
 // Типы для пропсов, если они не заданы глобально
 interface Props {
-  userId: string;
+  userId: number;
   open: boolean;
   onClose: () => void;
 }
@@ -212,7 +212,7 @@ export default function AddressEditor({ userId, open, onClose }: Props) {
                                   <MapSelectorController 
                                     key="map-selector"
                                     cityCode={formData.city_code} pickupPoints={pickupPoints || []} 
-                                    selectedPoint={{code: selectedPointCode, label: ''}} onPointSelect={handlePointSelect} 
+                                   selectedPoint={{ code: selectedPointCode || '', label: '' }} onPointSelect={handlePointSelect} 
                                   />
                                   {selectedPointCode && (
                                     <div className="relative p-4 rounded-2xl border border-sky-400/30 bg-sky-500/10 backdrop-blur-sm">

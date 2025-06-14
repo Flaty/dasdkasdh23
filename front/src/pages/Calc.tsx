@@ -5,7 +5,6 @@ import { motion, AnimatePresence } from "framer-motion";
 
 import { getUserData } from "../utils/user";
 import { createOrder } from "../api/createOrder";
-import { useCustomNavigate } from "../utils/useCustomNavigate";
 import { useToast } from "../components/ToastProvider";
 import { useRate } from "../hook/useRate";
 import { useAddress } from "../hook/useAddress";
@@ -64,9 +63,8 @@ export default function Calc() {
 
   const user = getUserData();
   const { data: rateData, isLoading: isRateLoading } = useRate();
-  const { addressData, isLoading: isLoadingAddress } = useAddress(user?.id);
+  const { addressData, isLoadingAddress } = useAddress(user?.id); // Просто используй isLoadingAddress
   const toast = useToast();
-  const navigate = useCustomNavigate();
 
   // Эта функция теперь нужна только для предварительного расчета, чтобы показать юзеру
   const handleCalc = () => {
@@ -114,7 +112,7 @@ export default function Calc() {
       const cleanAddress = {
         deliveryType: addressData.deliveryType,
         city: addressData.city,
-        city_code: addressData.city_code,
+        city_code: Number(addressData.city_code),
         street: addressData.street,
         name: addressData.name,
         phone: addressData.phone,

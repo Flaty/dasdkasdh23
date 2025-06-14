@@ -12,7 +12,6 @@ export default function Toast({
   message,
   onClose,
   duration = 3000,
-  variant = "info",
 }: ToastProps) {
   const [visible, setVisible] = useState(true);
 

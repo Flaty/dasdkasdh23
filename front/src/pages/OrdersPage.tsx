@@ -6,18 +6,8 @@ import { fetchWithAuth } from "../api/fetchWithAuth";
 import BottomSheet, { type BottomSheetHandle } from "../components/BottomSheet"; 
 import { OrderCard } from "../components/ui/Card"
 import OrderDetails from "../components/OrderDetails"; 
+import type { Order } from '../utils/types'; //
 
-// ✨ 2. ОБНОВЛЯЕМ ИНТЕРФЕЙС ЗАКАЗА
-interface Order {
-  _id: string; // Уникальный ключ от MongoDB
-  id?: string; // Старый ID для обратной совместимости
-  publicId: string; // Наш новый красивый ID
-  category: string;
-  shipping: string;
-  price: number;
-  status: string;
-  createdAt: string;
-}
 
 const statusLabels: Record<string, string> = {
   pending: "На проверке",
@@ -112,7 +102,7 @@ export default function OrdersPage() {
             <div className="flex flex-col gap-3">
               {sortedOrders.map((order) => {
                 // ✨ 4. ГЛАВНЫЙ ФИКС ОШИБКИ. БЕЗ ЛИШНИХ ИЗМЕНЕНИЙ.
-                const displayId = order.publicId || order.id || ''; // Для совместимости со старыми заказами
+                const displayId = order.publicId || ''; // Для совместимости со старыми заказами
                 
                 return (
                   <OrderCard

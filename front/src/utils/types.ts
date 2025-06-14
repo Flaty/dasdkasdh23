@@ -1,49 +1,74 @@
-// types.ts
+// src/utils/types.ts
 
-// Этот интерфейс у тебя правильный, оставляем
-export interface UserAddress {
-  userId: number;
-  city: string;
-  city_code: string;
-  street: string;
-  name: string;
-  phone:string;
-  deliveryType: "pickup" | "address";
-  pickupCode?: string;
-  pickupAddress?: string;
-}
-
-// 🔥🔥🔥 ВОТ ГЛАВНЫЙ ФИКС 🔥🔥🔥
-// Обновляем интерфейс заказа в соответствии с бэкендом
+// ✅ Полный и правильный тип заказа, как на бэкенде
 export interface Order {
-  _id: string; // Уникальный ID от MongoDB, для React-ключей
-  publicId: string; // Наш новый, красивый, публичный ID
-  id?: string; // Старый ID делаем НЕОБЯЗАТЕЛЬНЫМ (для старых заказов в базе)
-
+  _id: string;
+  publicId: string;
   userId: number;
-  username?: string;
+  username: string;
   link: string;
   category: string;
   shipping: string;
   price: number;
-  createdAt: string;
-  
-  // Приводим статусы в соответствие с бэкендом
   status: 
-    | 'pending'
-    | 'awaiting_payment'
-    | 'paid'
-    | 'to_warehouse'
-    | 'at_warehouse'
-    | 'to_moscow'
-    | 'in_moscow'
-    | 'shipped_cdek'
-    | 'ready_for_pickup'
-    | 'completed'
-    | 'rejected';
+    | 'pending' | 'awaiting_payment' | 'paid' | 'to_warehouse'
+    | 'at_warehouse' | 'to_moscow' | 'in_moscow' | 'shipped_cdek'
+    | 'ready_for_pickup' | 'completed' | 'rejected';
+  deliveryType: 'address' | 'pickup';
+  city: string;
+  street: string;
+  fullName: string;
+  phone: string;
+  pickupCode?: string;
+  pickupAddress?: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
-// Этот тип тоже в порядке, оставляем
+// ✅ Правильный тип адреса с city_code: number
+export interface UserAddress {
+  userId: number;
+  name: string;
+  phone: string;
+  city: string;
+  city_code: number; // Был string, стал number
+  street: string;
+  deliveryType: 'pickup' | 'address';
+  pickupCode?: string;
+  pickupAddress?: string;
+}
+
+// ✅ Тип для ачивок, который нужен в профиле
+export interface Achievement {
+  id: string;
+  name: string;
+  icon: string;
+  is_completed: boolean;
+}
+
+// ✅ Полный тип данных для страницы профиля
+export interface ProfileData {
+  days_in_ecosystem: number;
+  loyalty_status: {
+    name: string;
+    icon: string;
+    next_status_name: string | null;
+    orders_to_next_status: number;
+    progress_percentage: number;
+    current_cashback_percent: number;
+    perks: string[];
+  };
+  last_order: Order | null;
+  achievements: Achievement[];
+  address: UserAddress | null;
+  referral_info: {
+    link: string;
+    is_active: boolean;
+    bonus_per_friend: number;
+  };
+}
+
+// ✅ Этот тип у тебя был, он полезен, оставляем
 export type CreateOrderPayload = {
   userId: number;
   username?: string;
@@ -51,5 +76,5 @@ export type CreateOrderPayload = {
   category: string;
   shipping: string;
   rawPoizonPrice: number;
-  address: UserAddress;
+  address: Omit<UserAddress, 'userId'>; // Для чистоты можно убрать userId, но и так сойдет
 };

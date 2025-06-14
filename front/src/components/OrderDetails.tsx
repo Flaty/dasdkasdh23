@@ -40,7 +40,7 @@ export default function OrderDetails({ order }: OrderDetailsProps) {
   const currentStatusIndex = statusPipeline.indexOf(order.status);
   
   // Создаем "безопасный" ID, который работает и для старых, и для новых заказов
-  const displayId = order.publicId || order.id || '';
+  const displayId = order.publicId || '';
   
   // Получаем переведенное название категории
   const displayCategory = categoryLabels[order.category] || order.category;

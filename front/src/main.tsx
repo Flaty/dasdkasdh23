@@ -45,7 +45,7 @@ async function startApp() {
   if (!rootElement) return;
   
   const isDev = import.meta.env.DEV;
-  const tg = window.Telegram?.WebApp;
+  const tg = window.Telegram?.WebApp as any;
 
   try {
     let userDataForApp: any = null;

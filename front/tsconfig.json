@@ -1,10 +1,25 @@
 {
-  "files": [],
-  "references": [
-    { "path": "./tsconfig.app.json" },
-    { "path": "./tsconfig.node.json" }
-  ],
-   "compilerOptions": {
-    "types": ["vite/client", "@twa-dev/types"], 
+  "compilerOptions": {
+    "target": "ES2020",
+    "useDefineForClassFields": true,
+    "lib": ["ES2020", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "skipLibCheck": true, /* ВАЖНО: Пропускать проверку типов во всех .d.ts файлах зависимостей. */
+
+    /* Bundler mode */
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "noEmit": true,
+    "jsx": "react-jsx",
+
+    /* Linting */
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true
   },
+  "include": ["src"],  /* САМЫЙ ГЛАВНЫЙ ФИКС: Явно указываем, что компилировать нужно ТОЛЬКО папку src. */
+  "exclude": ["node_modules"], /* Явно говорим НЕ ЛЕЗТЬ в node_modules. */
 }

@@ -2,7 +2,7 @@
 import { useLocation } from "react-router-dom";
 import { User, Package, Calculator } from "lucide-react";
 import { useCustomNavigate } from "../utils/useCustomNavigate";
-import { motion, useMotionValue, useTransform } from "framer-motion";
+import { motion } from "framer-motion";
 import { useState, useRef } from "react";
 
 const tabs = [
@@ -52,7 +52,7 @@ export default function TabBar() {
         })}
       </div>
 
-      {tabs.map(({ to, label, icon: Icon }, index) => {
+      {tabs.map(({ to, label, icon: Icon }) => {
         const isActive = location.pathname === to;
         const isPressed = pressedTab === to;
         const ref = useRef<HTMLButtonElement>(null);

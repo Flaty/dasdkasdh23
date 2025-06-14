@@ -11,6 +11,7 @@ import { useProfile, type ProfileData } from "../hook/useProfile";
 import ProfileSkeleton from "../components/ProfileSkeleton";
 import { formatDistanceToNowStrict } from 'date-fns';
 import { ru } from 'date-fns/locale';
+import type { Achievement } from '../utils/types'; 
 import { MessageSquareQuote, Gem, MapPin, Handshake, ChevronRightIcon, Package, Gift, Trophy, Award, Flame, ReceiptText } from 'lucide-react';
 
 // --- Хелперы ---
@@ -138,7 +139,7 @@ export default function Profile() {
 {profile.last_order && (
   <ProfileCard 
     title="Последний заказ" 
-    subtitle={formatRelativeTime(profile.last_order.created_at)} 
+    subtitle={formatRelativeTime(profile.last_order.createdAt)}
     icon={<Package className="w-4 h-4 text-neutral-400" />}
     onClick={() => handleOrderClick(profile.last_order)}
   >
@@ -155,7 +156,7 @@ export default function Profile() {
             Сделать новый заказ
           </button>
           <div className="flex flex-wrap gap-2 mt-3">
-            {profile.achievements.map((ach) => (
+            {profile.achievements.map((ach: Achievement) => (
               <span key={ach.id} className={`flex items-center gap-1.5 text-xs px-3 py-1 rounded-full font-medium transition-all ${ach.is_completed ? 'border-green-400/30 bg-green-500/20 text-green-300' : 'border-white/20 bg-white/10 text-white/60'}`}>
                 {achievementIcons[ach.id]}
                 {ach.name}

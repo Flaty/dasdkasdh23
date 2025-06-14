@@ -6,7 +6,7 @@ import { useUnpaidOrder } from "../hook/useUnpaidOrder";
 import { haptic } from "../utils/haptic";
 
 export default function UnpaidOrderBanner() {
-  const { unpaidOrderId, clearUnpaidOrder, checkOrderStatus } = useUnpaidOrder();
+  const { unpaidOrderId, checkOrderStatus } = useUnpaidOrder();
   const [isVisible, setIsVisible] = useState(false);
   const [lastDismissed, setLastDismissed] = useState(0);
   
@@ -67,7 +67,7 @@ export default function UnpaidOrderBanner() {
           dragElastic={0.2}
           onDragEnd={handleDragEnd}
           initial={{ y: -150, scale: 0.8, opacity: 0 }}
-          animate={controls.length ? controls : { y: 0, scale: 1, opacity: 1 }}
+          animate={controls ? controls : { y: 0, scale: 1, opacity: 1 }}
           exit={{ scale: 0.9, opacity: 0 }}
           transition={{ 
             type: "spring",

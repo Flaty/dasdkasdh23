@@ -1,6 +1,6 @@
 // src/components/YandexMap.tsx
 import { useEffect, useRef } from "react";
-import { YMaps, Map, Placemark, Clusterer, type YMap } from "@pbe/react-yandex-maps";
+import { YMaps, Map, Placemark, Clusterer } from "@pbe/react-yandex-maps";
 
 interface Point {
   code: string;
@@ -15,7 +15,7 @@ interface Props {
 }
 
 export default function YandexMap({ points, onSelect, selectedCode }: Props) {
-  const mapRef = useRef<YMap | null>(null);
+  const mapRef = useRef<any | null>(null); 
 
   useEffect(() => {
     if (mapRef.current && points.length > 0) {
@@ -45,7 +45,7 @@ export default function YandexMap({ points, onSelect, selectedCode }: Props) {
           instanceRef={ (ref) => { mapRef.current = ref } }
           defaultState={{ center: [55.75, 37.57], zoom: 10 }}
           style={{ width: '100%', height: '100%' }}
-          options={{ suppressMapOpenBlock: true, yandexMapDisablePoiInteractivity: true, controls: [] }}
+          options={{ suppressMapOpenBlock: true, yandexMapDisablePoiInteractivity: true }}
           modules={["control.ZoomControl", "control.FullscreenControl", "geoObject.addon.balloon"]}
         >
           <Clusterer
