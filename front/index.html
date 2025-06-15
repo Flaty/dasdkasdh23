@@ -1,17 +1,25 @@
 <!doctype html>
 <html lang="en">
   <head>
-  <meta charset="UTF-8" />
+    <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no, maximum-scale=1.0">
-    
-    <!-- Важно для safe area -->
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     
-    <!-- Добавляем стили прямо в head для быстрой загрузки -->
+    <!-- 🔥 ШАГ 1: ГЛАВНЫЙ ФИКС. Объявляем CSS переменные для Safe Area -->
     <style>
+      :root {
+        /*
+          Браузер на iOS сам подставит сюда правильные значения.
+          На других устройствах они будут 0px. Это стандарт.
+        */
+        --safe-area-top: env(safe-area-inset-top);
+        --safe-area-bottom: env(safe-area-inset-bottom);
+        --safe-area-left: env(safe-area-inset-left);
+        --safe-area-right: env(safe-area-inset-right);
+      }
+      
       html, body {
-        /* Критично для safe area */
         padding: 0;
         margin: 0;
         height: 100%;
@@ -27,8 +35,6 @@
   </head>
   <body>
     <div id="root"></div>
-    
-    <!-- ✅ ПРОСТО ЧИСТАЯ ССЫЛКА НА ТОЧКУ ВХОДА. ОСТАЛЬНОЕ VITE СДЕЛАЕТ САМ. -->
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

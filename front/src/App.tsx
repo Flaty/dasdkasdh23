@@ -159,15 +159,23 @@ export default function App() {
   }
 
   return (
-    <AnimatePresence mode="wait" initial={false}>
-      <Routes location={location} key={location.key}>
-        <Route element={<TabBarLayout />}>
-          <Route path="/" element={<Navigate to="/profile" replace />} />
-          <Route path="/calc" element={<PageWrapperFade><Calc /></PageWrapperFade>} />
-          <Route path="/profile" element={<PageWrapperFade><Profile /></PageWrapperFade>} />
-          <Route path="/cart" element={<PageWrapperFade><OrdersPage /></PageWrapperFade>} />
-        </Route>
-      </Routes>
-    </AnimatePresence>
+    // AnimatePresence переехал в TabBarLayout, поэтому здесь он больше не нужен.
+    // Это обеспечивает анимацию ТОЛЬКО контента страницы, а не всего layout'а вместе с TabBar.
+    <Routes location={location} key={location.key}>
+      <Route element={<TabBarLayout />}>
+        {/* Главный роут редиректит на профиль */}
+        <Route path="/" element={<Navigate to="/profile" replace />} />
+        
+        {/* 
+          Страницы теперь рендерятся напрямую.
+          Обертка PageWrapperFade больше не нужна, так как TabBarLayout
+          уже содержит motion.div, который обрабатывает анимацию
+          появления/исчезновения Outlet'а.
+        */}
+        <Route path="/calc" element={<Calc />} />
+        <Route path="/profile" element={<Profile />} />
+        <Route path="/cart" element={<OrdersPage />} />
+      </Route>
+    </Routes>
   );
 }
