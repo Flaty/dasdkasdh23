@@ -130,7 +130,7 @@ export default function App() {
           <Route path="/" element={<Navigate to="/profile" replace />} />
           <Route path="/calc" element={<PageWrapperFade><Calc /></PageWrapperFade>} />
           <Route path="/profile" element={<PageWrapperFade><Profile /></PageWrapperFade>} />
-          <Route path="/cart" element={<PageWrapperFade scrollable><OrdersPage /></PageWrapperFade>} />
+          <Route path="/cart" element={<PageWrapperFade><OrdersPage /></PageWrapperFade>} />
         </Route>
       </Routes>
     </AnimatePresence>
