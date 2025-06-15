@@ -10,6 +10,7 @@ import TabBarLayout from "./layouts/TabBarLayout";
 
 // Расширяем типы для новых методов
 interface ExtendedWebApp {
+  isExpanded: boolean;
   initData: string;
   initDataUnsafe: {
     user?: {
@@ -21,6 +22,7 @@ interface ExtendedWebApp {
       allows_write_to_pm?: boolean;
       photo_url?: string;
     };
+    start_param?: string; 
   };
   ready(): void;
   expand(): void;
@@ -105,21 +107,28 @@ export default function App() {
       try {
         const tg = await waitForTelegram();
         
+        // 🔥🔥🔥 НАЧАЛО ХАКА "ХИТРЫЙ РЕДИРЕКТ" 🔥🔥🔥
+        // Проверяем два условия:
+        // 1. Приложение НЕ в полноэкранном режиме (т.е. открыто в шторке)
+        // 2. У нас НЕТ start_param (чтобы избежать бесконечного цикла редиректов)
+        if (!tg.isExpanded && !tg.initDataUnsafe.start_param) {
+            // Если оба условия верны, мы делаем редирект на самих себя,
+            // но через специальную ссылку, которая ГАРАНТИРОВАННО открывает приложение на весь экран.
+            // ЗАМЕНИ ariyaappbot на юзернейм своего бота, если он другой!
+            window.location.href = `https://t.me/ariyaappbot?startapp=force_fullscreen`;
+            
+            // ВАЖНО: Прерываем выполнение дальнейшего кода, так как страница сейчас перезагрузится.
+            return;
+        }
+        // 🔥🔥🔥 КОНЕЦ ХАКА 🔥🔥🔥
+
+        // Если редирект не потребовался, выполняем обычную инициализацию
         tg.ready();
-        tg.expand();
+        tg.expand(); // Эта команда все еще нужна для обычных запусков
         tg.setHeaderColor('secondary_bg_color'); 
-        tg.setBackgroundColor('secondary_bg_color');
         tg.setBackgroundColor('#0a0a0a');
         tg.enableClosingConfirmation();
-        const viewport = (tg as any).viewport;
-          if (viewport?.requestFullscreen?.isAvailable?.()) {
-            console.log("✅ Fullscreen доступен, пробуем перейти");
-            await viewport.requestFullscreen();
-          } else {
-            console.log("❌ Fullscreen не доступен");
-          }
         
-        // Enable vertical swipes by default
         if (typeof tg.enableVerticalSwipes === 'function') {
           tg.enableVerticalSwipes();
         }
