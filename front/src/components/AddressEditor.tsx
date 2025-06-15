@@ -1,4 +1,4 @@
-// src/components/AddressEditor.tsx - ВЕРСИЯ, КОТОРАЯ ВСЕХ ТРАХНУЛА
+// src/components/AddressEditor.tsx - ФИНАЛЬНАЯ ВЕРСИЯ
 
 import { useEffect, useState, useMemo, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -43,27 +43,26 @@ export default function AddressEditor({ userId, open, onClose }: Props) {
   const [cityQuery, setCityQuery] = useState('');
   const [tempSelectedPoint, setTempSelectedPoint] = useState<{ code: string; address: string } | null>(null);
 
+  // 🔥🔥🔥 ГЛАВНЫЙ ФИКС: Убираем агрессивную очистку и фокусируемся на инициализации
   useEffect(() => {
-    if (!open) {
-        setFormData(EMPTY_ADDRESS);
+    // Эффект срабатывает только тогда, когда шторка должна быть открыта
+    if (open) {
+      if (addressData) {
+        // Если данные с сервера есть, используем их для инициализации формы.
+        setFormData(addressData);
+        setCityQuery(addressData.city || '');
+        // Определяем режим: если есть адрес, показываем его (idle), если нет - редактируем.
+        setMode(addressData.city_code ? 'idle' : 'editing');
+        setView('form'); // Всегда начинаем с формы
+      } else if (!isLoadingAddress) {
+        // Если данных нет И загрузка завершена, начинаем с чистого листа.
+        setFormData({ ...EMPTY_ADDRESS, userId, deliveryType: 'pickup' });
         setCityQuery('');
-        setTempSelectedPoint(null);
-        setMode('idle');
+        setMode('editing');
         setView('form');
-        return;
-    }
-    if (addressData) {
-      setFormData(addressData);
-      setCityQuery(addressData.city || '');
-      setTempSelectedPoint(null); 
-      setMode(addressData.city_code ? 'idle' : 'editing');
-      setView('form');
-    } else if (!isLoadingAddress) {
-      setFormData({ ...EMPTY_ADDRESS, userId, deliveryType: 'pickup' });
-      setCityQuery('');
+      }
+      // Временный выбор на карте всегда сбрасывается при открытии
       setTempSelectedPoint(null);
-      setMode('editing');
-      setView('form');
     }
   }, [open, addressData, isLoadingAddress, userId]);
   
@@ -79,9 +78,7 @@ export default function AddressEditor({ userId, open, onClose }: Props) {
   
   const isSaveDisabled = useMemo(() => {
     if (isSavingAddress) return true;
-    if (!formData.name?.trim() || !formData.phone?.trim() || !formData.city_code) {
-        return true;
-    }
+    if (!formData.name?.trim() || !formData.phone?.trim() || !formData.city_code) return true;
     if (formData.deliveryType === 'pickup' && !formData.pickupCode) return true;
     if (formData.deliveryType === 'address' && !formData.street?.trim()) return true;
     return false;
@@ -96,36 +93,22 @@ export default function AddressEditor({ userId, open, onClose }: Props) {
       ...prev,
       city: fullCityName,
       city_code: city.code,
-      pickupCode: '',
-      pickupAddress: '',
-      street: ''
+      pickupCode: '', pickupAddress: '', street: ''
     }));
     setTempSelectedPoint(null);
-    
-    if (deliveryType === 'pickup') {
-      setView('map');
-    } else {
-      setView('form');
-    }
+    if (deliveryType === 'pickup') setView('map');
+    else setView('form');
   };
   
   const handleDeliveryTypeChange = (type: 'pickup' | 'address') => {
-      setFormData(prev => {
-          const newState = {...prev, deliveryType: type};
-          if (type === 'pickup') {
-              newState.street = '';
-          } else {
-              newState.pickupCode = '';
-              newState.pickupAddress = '';
-          }
-          return newState;
-      });
-      
-      if (type === 'pickup' && formData.city_code) {
-        setView('map');
-      } else {
-        setView('form');
-      }
+    setFormData(prev => {
+      const newState = {...prev, deliveryType: type};
+      if (type === 'pickup') newState.street = '';
+      else { newState.pickupCode = ''; newState.pickupAddress = ''; }
+      return newState;
+    });
+    if (type === 'pickup' && formData.city_code) setView('map');
+    else setView('form');
   };
 
   const handlePointSelectOnMap = (point: {code: string, address: string, coords: [number, number]}) => {
@@ -134,11 +117,7 @@ export default function AddressEditor({ userId, open, onClose }: Props) {
 
   const handleConfirmSelection = () => {
     if (tempSelectedPoint) {
-      setFormData(prev => ({
-        ...prev,
-        pickupCode: tempSelectedPoint.code,
-        pickupAddress: tempSelectedPoint.address
-      }));
+      setFormData(prev => ({...prev, pickupCode: tempSelectedPoint.code, pickupAddress: tempSelectedPoint.address}));
     }
     setView('form');
   };
@@ -150,18 +129,15 @@ export default function AddressEditor({ userId, open, onClose }: Props) {
   
   const handleStartEditing = () => {
     setMode('editing');
-    if (formData.deliveryType === 'pickup') {
-      setView('map');
-    } else {
-      setView('form');
-    }
+    if (formData.deliveryType === 'pickup') setView('map');
+    else setView('form');
   };
 
   const activeMapPointCode = tempSelectedPoint?.code || formData.pickupCode || null;
 
   return (
     <BottomSheet ref={sheetRef} title="Адрес доставки" open={open} onClose={onClose}>
-      {isLoadingAddress ? (
+      {isLoadingAddress && !addressData ? ( // Условие для скелетона: грузим и еще нет данных
         <div className="flex justify-center items-center h-40"><SpinnerIcon className="text-white/50 w-8 h-8" /></div>
       ) : (
         <div className="space-y-6">
@@ -230,19 +206,15 @@ export default function AddressEditor({ userId, open, onClose }: Props) {
                     <AnimatePresence initial={false}>
                       {view === 'map' && deliveryType === 'pickup' && formData.city_code > 0 && (
                         <motion.div
-                          key="map-view"
-                          initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}
-                          transition={{ duration: 0.3, ease: 'easeInOut' }}
-                          className="space-y-3"
+                          key="map-view" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}
+                          transition={{ duration: 0.3, ease: 'easeInOut' }} className="space-y-3"
                         >
                               <label className="text-xs font-medium text-white/40 uppercase tracking-wider">Выбери пункт выдачи на карте</label>
                               {isLoadingPoints ? ( <MapSkeleton /> ) : (
                                 <>
                                   <MapSelectorController 
-                                    cityCode={formData.city_code} 
-                                    pickupPoints={pickupPoints || []} 
-                                    selectedCode={activeMapPointCode} 
-                                    onSelect={handlePointSelectOnMap} 
+                                    cityCode={formData.city_code} pickupPoints={pickupPoints || []} 
+                                    selectedCode={activeMapPointCode} onSelect={handlePointSelectOnMap} 
                                   />
                                   {tempSelectedPoint && (
                                     <div className="relative p-4 rounded-2xl border border-sky-400/30 bg-sky-500/10 backdrop-blur-sm">
@@ -265,10 +237,8 @@ export default function AddressEditor({ userId, open, onClose }: Props) {
                     <AnimatePresence>
                       {view === 'form' && (
                          <motion.div
-                            key="form-view"
-                            initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}
-                            transition={{ duration: 0.3, ease: 'easeInOut' }}
-                            className="space-y-4"
+                            key="form-view" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}
+                            transition={{ duration: 0.3, ease: 'easeInOut' }} className="space-y-4"
                          >
                             {deliveryType === 'pickup' ? (
                               <div className="relative p-4 rounded-2xl border border-white/10 bg-white/5">
