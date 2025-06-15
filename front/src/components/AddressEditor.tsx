@@ -1,4 +1,4 @@
-// src/components/AddressEditor.tsx - СТАБИЛИЗИРОВАННАЯ ВЕРСИЯ С СОХРАНЕНИЕМ UX
+// src/components/AddressEditor.tsx - ВЕРСИЯ, КОТОРАЯ ВСЕХ ТРАХНУЛА
 
 import { useEffect, useState, useMemo, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -41,50 +41,47 @@ export default function AddressEditor({ userId, open, onClose }: Props) {
   
   const [formData, setFormData] = useState<UserAddress>(EMPTY_ADDRESS);
   const [cityQuery, setCityQuery] = useState('');
-  
-  // ✅ Состояние для ВРЕМЕННОГО выбора на карте. Оно не влияет на основную форму.
   const [tempSelectedPoint, setTempSelectedPoint] = useState<{ code: string; address: string } | null>(null);
 
-  // 🔥🔥🔥 ГЛАВНЫЙ ФИКС: Устойчивый useEffect для инициализации состояния
   useEffect(() => {
-    // Не делаем ничего, пока шторка закрыта.
-    if (!open) return;
-
-    // Если данные с сервера есть, используем их для инициализации формы.
+    if (!open) {
+        setFormData(EMPTY_ADDRESS);
+        setCityQuery('');
+        setTempSelectedPoint(null);
+        setMode('idle');
+        setView('form');
+        return;
+    }
     if (addressData) {
       setFormData(addressData);
       setCityQuery(addressData.city || '');
-      // При открытии временный выбор сбрасывается, карта покажет сохраненный ПВЗ
       setTempSelectedPoint(null); 
-      
       setMode(addressData.city_code ? 'idle' : 'editing');
       setView('form');
     } else if (!isLoadingAddress) {
-      // Если данных нет И загрузка завершена, начинаем с чистого листа.
-      setFormData({ ...EMPTY_ADDRESS, userId });
+      setFormData({ ...EMPTY_ADDRESS, userId, deliveryType: 'pickup' });
       setCityQuery('');
       setTempSelectedPoint(null);
       setMode('editing');
       setView('form');
     }
-    // Этот эффект должен зависеть от open, addressData и isLoadingAddress
   }, [open, addressData, isLoadingAddress, userId]);
   
   const { data: suggestedCities } = useCitySuggestions(cityQuery);
-  // Запрос ПВЗ теперь зависит от city_code в основной форме, это стабильно
   const { data: pickupPoints, isLoading: isLoadingPoints } = usePickupPoints(formData.city_code);
 
   const handleSave = async () => {
     const ok = await saveAddress({ ...formData, userId });
     if (ok) {
-      setMode('idle');
-      onClose(); // Используем onClose, так как BottomSheet им управляется
+      sheetRef.current?.dismiss();
     }
   };
   
   const isSaveDisabled = useMemo(() => {
     if (isSavingAddress) return true;
-    if (!formData.name?.trim() || !formData.phone?.trim() || !formData.city_code) return true;
+    if (!formData.name?.trim() || !formData.phone?.trim() || !formData.city_code) {
+        return true;
+    }
     if (formData.deliveryType === 'pickup' && !formData.pickupCode) return true;
     if (formData.deliveryType === 'address' && !formData.street?.trim()) return true;
     return false;
@@ -93,27 +90,37 @@ export default function AddressEditor({ userId, open, onClose }: Props) {
   const deliveryType = formData.deliveryType;
 
   const handleCitySelect = (city: SuggestedCity) => {
-    // Обновляем и строку поиска, и данные в форме
     const fullCityName = `${city.city}, ${city.region || ''}`.trim();
     setCityQuery(fullCityName);
     setFormData(prev => ({
       ...prev,
       city: fullCityName,
       city_code: city.code,
-      pickupCode: '', // Сбрасываем ПВЗ при смене города
+      pickupCode: '',
       pickupAddress: '',
       street: ''
     }));
-    setTempSelectedPoint(null); // Сбрасываем временный выбор
+    setTempSelectedPoint(null);
     
-    // После выбора города сразу показываем карту, если выбран тип "ПВЗ"
     if (deliveryType === 'pickup') {
       setView('map');
+    } else {
+      setView('form');
     }
   };
   
   const handleDeliveryTypeChange = (type: 'pickup' | 'address') => {
-      setFormData(prev => ({...prev, deliveryType: type}));
+      setFormData(prev => {
+          const newState = {...prev, deliveryType: type};
+          if (type === 'pickup') {
+              newState.street = '';
+          } else {
+              newState.pickupCode = '';
+              newState.pickupAddress = '';
+          }
+          return newState;
+      });
+      
       if (type === 'pickup' && formData.city_code) {
         setView('map');
       } else {
@@ -121,12 +128,10 @@ export default function AddressEditor({ userId, open, onClose }: Props) {
       }
   };
 
-  // ✅ Этот обработчик теперь обновляет только ВРЕМЕННОЕ состояние
   const handlePointSelectOnMap = (point: {code: string, address: string, coords: [number, number]}) => {
       setTempSelectedPoint({ code: point.code, address: point.address });
   };
 
-  // ✅ Кнопка "Подтвердить" теперь берет данные из временного состояния и сохраняет в основное
   const handleConfirmSelection = () => {
     if (tempSelectedPoint) {
       setFormData(prev => ({
@@ -135,25 +140,23 @@ export default function AddressEditor({ userId, open, onClose }: Props) {
         pickupAddress: tempSelectedPoint.address
       }));
     }
-    setView('form'); // Переключаемся на форму
+    setView('form');
   };
   
   const handleBackToMap = () => {
-    // При возврате на карту сбрасываем временный выбор, чтобы карта показала сохраненный ПВЗ
     setTempSelectedPoint(null);
     setView('map');
   };
   
   const handleStartEditing = () => {
     setMode('editing');
-    if (deliveryType === 'pickup') {
+    if (formData.deliveryType === 'pickup') {
       setView('map');
     } else {
       setView('form');
     }
   };
 
-  // Код активного ПВЗ на карте: либо временный выбор, либо уже сохраненный в форме
   const activeMapPointCode = tempSelectedPoint?.code || formData.pickupCode || null;
 
   return (
@@ -162,17 +165,17 @@ export default function AddressEditor({ userId, open, onClose }: Props) {
         <div className="flex justify-center items-center h-40"><SpinnerIcon className="text-white/50 w-8 h-8" /></div>
       ) : (
         <div className="space-y-6">
-            {mode === 'idle' && (
+            {mode === 'idle' && formData.city_code > 0 && (
               <motion.div key="idle-view" {...motionProps}>
                 <div className="space-y-4">
                   <div className="relative p-4 rounded-2xl border border-white/10 bg-white/5 backdrop-blur-sm">
                     <div className="flex items-start gap-3">
                        <div className="w-8 h-8 rounded-full bg-sky-500/20 flex items-center justify-center shrink-0 mt-0.5">
-                         {deliveryType === 'pickup' ? <BuildingStorefrontIcon className="w-4 h-4 text-sky-400" /> : <TruckIcon className="w-4 h-4 text-sky-400" />}
+                         {formData.deliveryType === 'pickup' ? <BuildingStorefrontIcon className="w-4 h-4 text-sky-400" /> : <TruckIcon className="w-4 h-4 text-sky-400" />}
                        </div>
                        <div className="flex-1 min-w-0 pr-16">
-                         <div className="text-xs text-white/40 mb-1">{deliveryType === 'pickup' ? 'Пункт выдачи' : 'Адрес доставки'}</div>
-                         <div className="text-sm text-white leading-relaxed">{deliveryType === 'pickup' ? formData.pickupAddress : formData.street}</div>
+                         <div className="text-xs text-white/40 mb-1">{formData.deliveryType === 'pickup' ? 'Пункт выдачи' : 'Адрес доставки'}</div>
+                         <div className="text-sm text-white leading-relaxed">{formData.deliveryType === 'pickup' ? formData.pickupAddress : formData.street}</div>
                        </div>
                     </div>
                     <button onClick={handleStartEditing} className="absolute top-4 right-4 p-2 rounded-xl bg-white/5 hover:bg-white/10 transition group">
@@ -209,40 +212,36 @@ export default function AddressEditor({ userId, open, onClose }: Props) {
                   </div>
 
                   <div className="relative">
+                     <div className="space-y-2 mb-4">
+                        <label className="text-xs font-medium text-white/40 uppercase tracking-wider">Город</label>
+                        <input value={cityQuery} onChange={(e) => setCityQuery(e.target.value)} placeholder="Начни вводить город..." className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-3 text-white placeholder:text-white/40 text-sm outline-none focus:border-white/30 focus:ring-2 focus:ring-white/10 transition"/>
+                        {cityQuery && (suggestedCities || []).length > 0 && formData.city !== cityQuery && (
+                          <div className="bg-white/5 border border-white/10 rounded-2xl overflow-hidden backdrop-blur-sm mt-2">
+                            {suggestedCities!.map((item) => (
+                              <button key={item.code} onClick={() => handleCitySelect(item)} className="w-full text-left px-4 py-3 text-sm hover:bg-white/10 transition text-white flex items-center gap-3">
+                                <MapPinIcon className="w-4 h-4 text-white/40 shrink-0" />
+                                <span>{item.city}, {item.region}</span>
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                    </div>
+
                     <AnimatePresence initial={false}>
-                      {view === 'map' && deliveryType === 'pickup' && (
+                      {view === 'map' && deliveryType === 'pickup' && formData.city_code > 0 && (
                         <motion.div
                           key="map-view"
-                          initial={{ opacity: 0, y: 20 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          exit={{ opacity: 0, y: -20 }}
+                          initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}
                           transition={{ duration: 0.3, ease: 'easeInOut' }}
                           className="space-y-3"
                         >
-                          <div className="space-y-2">
-                            <label className="text-xs font-medium text-white/40 uppercase tracking-wider">Город</label>
-                            <input value={cityQuery} onChange={(e) => setCityQuery(e.target.value)} placeholder="Начни вводить город..." className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-3 text-white placeholder:text-white/40 text-sm outline-none focus:border-white/30 focus:ring-2 focus:ring-white/10 transition"/>
-                            {cityQuery && (suggestedCities || []).length > 0 && formData.city !== cityQuery && (
-                              <div className="bg-white/5 border border-white/10 rounded-2xl overflow-hidden backdrop-blur-sm">
-                                {suggestedCities!.map((item) => (
-                                  <button key={item.code} onClick={() => handleCitySelect(item)} className="w-full text-left px-4 py-3 text-sm hover:bg-white/10 transition text-white flex items-center gap-3">
-                                    <MapPinIcon className="w-4 h-4 text-white/40 shrink-0" />
-                                    <span>{item.city}, {item.region}</span>
-                                  </button>
-                                ))}
-                              </div>
-                            )}
-                          </div>
-                          
-                          {formData.city_code > 0 && (
-                            <div className="space-y-3">
                               <label className="text-xs font-medium text-white/40 uppercase tracking-wider">Выбери пункт выдачи на карте</label>
                               {isLoadingPoints ? ( <MapSkeleton /> ) : (
                                 <>
                                   <MapSelectorController 
                                     cityCode={formData.city_code} 
                                     pickupPoints={pickupPoints || []} 
-                                    selectedCode={activeMapPointCode}
+                                    selectedCode={activeMapPointCode} 
                                     onSelect={handlePointSelectOnMap} 
                                   />
                                   {tempSelectedPoint && (
@@ -259,8 +258,6 @@ export default function AddressEditor({ userId, open, onClose }: Props) {
                                   )}
                                 </>
                               )}
-                            </div>
-                          )}
                         </motion.div>
                       )}
                     </AnimatePresence>
@@ -269,9 +266,7 @@ export default function AddressEditor({ userId, open, onClose }: Props) {
                       {view === 'form' && (
                          <motion.div
                             key="form-view"
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            exit={{ opacity: 0, y: -20 }}
+                            initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}
                             transition={{ duration: 0.3, ease: 'easeInOut' }}
                             className="space-y-4"
                          >
