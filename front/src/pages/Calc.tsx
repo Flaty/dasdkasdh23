@@ -164,7 +164,7 @@ export default function Calc() {
   }, [state.resultText]);
 
   return (
-    <div className="relative min-h-screen bg-[#0a0a0a] text-white px-4 pt-[calc(env(safe-area-inset-top,0px)+16px)] overflow-hidden font-sans">
+    <div className="relative min-h-screen bg-[#0a0a0a] text-white px-4 pt-[calc(env(safe-area-inset-top,0px)+16px)] pb-[80px] overflow-hidden font-sans">
       <div className="flex flex-col space-y-4">
         <div className="flex flex-col gap-1">
           <h1 className="text-2xl font-bold">Рассчитать стоимость</h1>
