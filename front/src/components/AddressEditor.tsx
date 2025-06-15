@@ -3,6 +3,7 @@
 import { useEffect, useState, useMemo, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { MapPinIcon, TruckIcon, BuildingStorefrontIcon, PencilIcon } from "@heroicons/react/24/outline";
+import isEqual from 'lodash.isequal';
 
 import BottomSheet, { type BottomSheetHandle } from "./BottomSheet";
 import MapSelectorController from "./MapSelectorController";
@@ -40,6 +41,8 @@ export default function AddressEditor({ userId, open, onClose }: Props) {
   const [view, setView] = useState<ViewState>('form');
   
   const [formData, setFormData] = useState<UserAddress>(EMPTY_ADDRESS);
+  const [originalFormData, setOriginalFormData] = useState<UserAddress | null>(null);
+
   const [cityQuery, setCityQuery] = useState('');
   const [tempSelectedPoint, setTempSelectedPoint] = useState<{ code: string; address: string } | null>(null);
 
@@ -50,6 +53,7 @@ export default function AddressEditor({ userId, open, onClose }: Props) {
       if (addressData) {
         // Если данные с сервера есть, используем их для инициализации формы.
         setFormData(addressData);
+        setOriginalFormData(addressData);
         setCityQuery(addressData.city || '');
         // Определяем режим: если есть адрес, показываем его (idle), если нет - редактируем.
         setMode(addressData.city_code ? 'idle' : 'editing');
@@ -77,12 +81,18 @@ export default function AddressEditor({ userId, open, onClose }: Props) {
   };
   
   const isSaveDisabled = useMemo(() => {
+    // Проверяем, изменилось ли что-то в форме
+    const hasChanges = !isEqual(formData, originalFormData);
+
     if (isSavingAddress) return true;
+    if (!hasChanges) return true; // 👈 Если изменений нет, кнопка неактивна!
+
+    // Дальше твоя обычная валидация
     if (!formData.name?.trim() || !formData.phone?.trim() || !formData.city_code) return true;
     if (formData.deliveryType === 'pickup' && !formData.pickupCode) return true;
     if (formData.deliveryType === 'address' && !formData.street?.trim()) return true;
     return false;
-  }, [formData, isSavingAddress]);
+  }, [formData, originalFormData, isSavingAddress]);
   
   const deliveryType = formData.deliveryType;
 
@@ -128,6 +138,8 @@ export default function AddressEditor({ userId, open, onClose }: Props) {
   };
   
   const handleStartEditing = () => {
+    // При начале редактирования, сохраняем текущее состояние как "оригинальное"
+    setOriginalFormData(formData);
     setMode('editing');
     if (formData.deliveryType === 'pickup') setView('map');
     else setView('form');
