@@ -8,6 +8,7 @@ import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import App from './App';
 import { ToastProvider } from "./components/ToastProvider";
 import { TransitionDirectionProvider } from "./utils/TransitionDirectionContext";
+import { SafeAreaProvider } from "./components/SafeAreaProvider";
 
 import '@unocss/reset/tailwind.css';
 import './styles/globals.css';
@@ -26,7 +27,10 @@ if (rootElement) {
         <BrowserRouter>
           <ToastProvider>
             <TransitionDirectionProvider>
-              <App />
+              {/* ✅ 2. ОБОРАЧИВАЕМ APP В ПРОВАЙДЕР */}
+              <SafeAreaProvider>
+                <App />
+              </SafeAreaProvider>
             </TransitionDirectionProvider>
           </ToastProvider>
         </BrowserRouter>

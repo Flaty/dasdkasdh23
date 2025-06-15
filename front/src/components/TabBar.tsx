@@ -5,6 +5,7 @@ import { useCustomNavigate } from "../utils/useCustomNavigate";
 import { motion } from "framer-motion";
 import { useState, useRef } from "react";
 import { haptic } from "../utils/haptic";
+import { useSafeArea } from "./SafeAreaProvider";
 
 const tabs = [
   { to: "/profile", label: "Профиль", icon: User },
@@ -17,13 +18,14 @@ export default function TabBar() {
   const location = useLocation();
   const [pressedTab, setPressedTab] = useState<string | null>(null);
   const [touchPoint, setTouchPoint] = useState({ x: 0, y: 0 });
+  const safeArea = useSafeArea();
 
   return (
     <div 
       className="fixed bottom-0 left-0 right-0 z-50 flex justify-around items-center"
       style={{
-        height: 'calc(64px + env(safe-area-inset-bottom))',
-        paddingBottom: 'env(safe-area-inset-bottom)',
+        height: `calc(64px + ${safeArea.bottom}px)`,
+        paddingBottom: `${safeArea.bottom}px`,
         // Более прозрачный фон с усиленным blur
         background: 'rgba(0, 0, 0, 0.65)', // Было 0.90, теперь 0.65
         backdropFilter: 'blur(24px) saturate(180%)',

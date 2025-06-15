@@ -33,6 +33,10 @@ interface ExtendedWebApp {
   disableClosingConfirmation(): void;
   enableVerticalSwipes(): void;
   disableVerticalSwipes(): void;
+  viewportHeight: number;
+  viewportStableHeight: number;
+  onEvent(eventType: string, callback: () => void): void;
+  offEvent(eventType: string, callback: () => void): void;
   HapticFeedback: {
     impactOccurred(style: 'light' | 'medium' | 'heavy' | 'rigid' | 'soft'): void;
     notificationOccurred(type: 'error' | 'success' | 'warning'): void;
