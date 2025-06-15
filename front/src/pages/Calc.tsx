@@ -164,7 +164,7 @@ export default function Calc() {
   }, [state.resultText]);
 
   return (
-    <div className="px-4 pt-4">
+    <div className="px-4 pb-4 space-y-6">
       <div className="flex flex-col space-y-4">
         <div className="flex flex-col gap-1">
           <h1 className="text-2xl font-bold">Рассчитать стоимость</h1>

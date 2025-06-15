@@ -81,7 +81,7 @@ export default function OrdersPage() {
  return (
     <>
       {/* Я УБРАЛ СВОИ ЛИШНИЕ ОБЕРТКИ. ТЕПЕРЬ ТВОЙ ОРИГИНАЛЬНЫЙ ДИЗАЙН. */}
-      <div className="px-4 pt-4">
+      <div className="px-4 pb-4 space-y-4">
         <div className="flex flex-col gap-4">
           <h1 className="text-ui-h1">Мои заказы</h1>
 

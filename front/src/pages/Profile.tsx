@@ -120,8 +120,7 @@ export default function Profile() {
   if (!profile) return null;
 
   return (
-     <div className="px-4 pt-4">
-
+     <div className="px-4 pb-4 space-y-6"> 
       <div className="flex flex-col items-center gap-2 text-center mb-4 relative">
         <img src={baseUser.photo_url || "https://placehold.co/96x96"} alt="avatar" className="w-24 h-24 rounded-full border border-white/10 shadow-lg" />
         <button onClick={() => setSupportOpen(true)} className="absolute top-0 right-0 p-2 rounded-full text-white/40 hover:bg-white/10 hover:text-white transition-colors" aria-label="Поддержка">
