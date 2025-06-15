@@ -1,46 +1,51 @@
-// src/layouts/TabBarLayout.tsx - ОБНОВЛЕННЫЙ
-
 import { Outlet, useLocation } from "react-router-dom";
+import { AnimatePresence, motion } from "framer-motion";
+import { useRef, useLayoutEffect } from "react";
 import TabBar from "../components/TabBar";
 import UnpaidOrderBanner from "../components/UnpaidOrderBanner";
-import { useRef, useLayoutEffect } from "react";
 
 export default function TabBarLayout() {
   const location = useLocation();
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
-  // Скроллим к верху при смене страницы
   useLayoutEffect(() => {
-    if (scrollContainerRef.current) {
-      scrollContainerRef.current.scrollTo(0, 0);
-    }
+    scrollContainerRef.current?.scrollTo(0, 0);
   }, [location.pathname]);
 
   return (
-    // Этот div — просто якорь на весь экран.
     <div className="fixed inset-0 bg-[#0a0a0a]">
+      {/* Эффект свечения, который не скроллится */}
+      <div id="glow-wrapper" className="absolute top-0 left-0 right-0 bottom-0 -z-10 pointer-events-none overflow-hidden">
+        <div className="absolute top-[15%] left-[25%] w-[360px] h-[360px] rounded-full" style={{ backgroundColor: "transparent", boxShadow: "0 0 160px 80px rgba(147, 51, 234, 0.2)" }} />
+        <div className="absolute bottom-[8%] right-[15%] w-[280px] h-[280px] rounded-full" style={{ backgroundColor: "transparent", boxShadow: "0 0 120px 60px rgba(59, 130, 246, 0.2)" }} />
+      </div>
+
       <UnpaidOrderBanner />
 
-      {/* 
-        🔥 ВОТ ОН, НАШ ГЛАВНЫЙ КОНТЕЙНЕР СКРОЛЛА 🔥
-        - Он всегда есть, всегда может скроллиться.
-        - Он "съедает" свайпы, не давая им улететь в Telegram.
-        - Он задает глобальные отступы, которые не будут конфликтовать со страницами.
-      */}
+      {/* ГЛАВНЫЙ СКРОЛЛ-КОНТЕЙНЕР */}
       <div
         ref={scrollContainerRef}
         className="absolute inset-0 overflow-y-auto no-scrollbar"
         style={{
-          // Верхний отступ для "челки"
-          paddingTop: `env(safe-area-inset-top, 0px)`, 
-          // Нижний отступ для таб-бара и системной навигации
-          paddingBottom: `calc(env(safe-area-inset-bottom, 0px) + 64px)`, // 64px - высота TabBar
+          paddingTop: `env(safe-area-inset-top, 0px)`,
+          paddingBottom: `calc(env(safe-area-inset-bottom, 0px) + 64px)`,
         }}
       >
-        <main>
-          {/* Outlet будет рендерить наш PageWrapperFade с контентом */}
-          <Outlet />
-        </main>
+        {/* 🔥🔥🔥 ВОТ ОН, ТРЮК С 1 ПИКСЕЛЕМ 🔥🔥🔥 */}
+        {/* Этот div ВСЕГДА чуть-чуть выше экрана, заставляя родителя быть скроллящимся */}
+        <div className="relative" style={{ minHeight: 'calc(100% + 1px)' }}>
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={location.pathname}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.15, ease: "easeOut" }}
+            >
+              <Outlet />
+            </motion.div>
+          </AnimatePresence>
+        </div>
       </div>
       
       <TabBar />
