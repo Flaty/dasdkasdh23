@@ -1,4 +1,4 @@
-// src/components/AddressEditor.tsx
+// src/components/AddressEditor.tsx - СТАБИЛИЗИРОВАННАЯ ВЕРСИЯ С СОХРАНЕНИЕМ UX
 
 import { useEffect, useState, useMemo, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -6,15 +6,14 @@ import { MapPinIcon, TruckIcon, BuildingStorefrontIcon, PencilIcon } from "@hero
 
 import BottomSheet, { type BottomSheetHandle } from "./BottomSheet";
 import MapSelectorController from "./MapSelectorController";
-import { useAddress, type UserAddress } from "../hook/useAddress"; // Импортируем наш новый хук и тип
+import { useAddress, type UserAddress } from "../hook/useAddress";
 import { useCitySuggestions, usePickupPoints, type SuggestedCity } from "../hook/useCdek";
 import SpinnerIcon from "./SpinnerIcon";
 import MapSkeleton from "./MapSkeleton";
 
-type EditorMode = 'idle' | 'editing'; // Убираем 'form', он больше не нужен
-type ViewState = 'form' | 'map'; // Новое состояние для управления видом
+type EditorMode = 'idle' | 'editing';
+type ViewState = 'form' | 'map';
 
-// Типы для пропсов, если они не заданы глобально
 interface Props {
   userId: number;
   open: boolean;
@@ -40,43 +39,49 @@ export default function AddressEditor({ userId, open, onClose }: Props) {
   const [mode, setMode] = useState<EditorMode>('idle');
   const [view, setView] = useState<ViewState>('form');
   
-  // ✅ ГЛАВНЫЙ ФИКС: formData - это наше ЛОКАЛЬНОЕ состояние формы.
   const [formData, setFormData] = useState<UserAddress>(EMPTY_ADDRESS);
   const [cityQuery, setCityQuery] = useState('');
-  const [selectedPointCode, setSelectedPointCode] = useState<string | null>(null);
+  
+  // ✅ Состояние для ВРЕМЕННОГО выбора на карте. Оно не влияет на основную форму.
+  const [tempSelectedPoint, setTempSelectedPoint] = useState<{ code: string; address: string } | null>(null);
 
+  // 🔥🔥🔥 ГЛАВНЫЙ ФИКС: Устойчивый useEffect для инициализации состояния
   useEffect(() => {
-    // Этот эффект СИНХРОНИЗИРУЕТ форму с данными с сервера ТОЛЬКО ОДИН РАЗ, когда данные загрузились.
+    // Не делаем ничего, пока шторка закрыта.
+    if (!open) return;
+
+    // Если данные с сервера есть, используем их для инициализации формы.
     if (addressData) {
       setFormData(addressData);
-      setCityQuery(addressData.city);
-      setSelectedPointCode(addressData.pickupCode || null);
-      // Определяем начальный режим
-      if (!addressData.city) {
-        setMode('editing');
-      } else {
-        setMode('idle');
-      }
-    } else if (open) {
-      // Если данных нет, но шторка открыта, начинаем с пустого редактирования
+      setCityQuery(addressData.city || '');
+      // При открытии временный выбор сбрасывается, карта покажет сохраненный ПВЗ
+      setTempSelectedPoint(null); 
+      
+      setMode(addressData.city_code ? 'idle' : 'editing');
+      setView('form');
+    } else if (!isLoadingAddress) {
+      // Если данных нет И загрузка завершена, начинаем с чистого листа.
       setFormData({ ...EMPTY_ADDRESS, userId });
+      setCityQuery('');
+      setTempSelectedPoint(null);
       setMode('editing');
+      setView('form');
     }
-  }, [addressData, open, userId]);
+    // Этот эффект должен зависеть от open, addressData и isLoadingAddress
+  }, [open, addressData, isLoadingAddress, userId]);
   
   const { data: suggestedCities } = useCitySuggestions(cityQuery);
+  // Запрос ПВЗ теперь зависит от city_code в основной форме, это стабильно
   const { data: pickupPoints, isLoading: isLoadingPoints } = usePickupPoints(formData.city_code);
 
-   const handleSave = async () => {
-    // Передаем в post-запрос userId из пропсов
+  const handleSave = async () => {
     const ok = await saveAddress({ ...formData, userId });
     if (ok) {
       setMode('idle');
-      onClose(); // Просто вызываем onClose, шторка закроется сама
+      onClose(); // Используем onClose, так как BottomSheet им управляется
     }
   };
   
-
   const isSaveDisabled = useMemo(() => {
     if (isSavingAddress) return true;
     if (!formData.name?.trim() || !formData.phone?.trim() || !formData.city_code) return true;
@@ -88,16 +93,20 @@ export default function AddressEditor({ userId, open, onClose }: Props) {
   const deliveryType = formData.deliveryType;
 
   const handleCitySelect = (city: SuggestedCity) => {
-    setCityQuery(`${city.city}, ${city.region}`);
+    // Обновляем и строку поиска, и данные в форме
+    const fullCityName = `${city.city}, ${city.region || ''}`.trim();
+    setCityQuery(fullCityName);
     setFormData(prev => ({
       ...prev,
-      city: `${city.city}, ${city.region}`,
+      city: fullCityName,
       city_code: city.code,
-      pickupCode: '',
+      pickupCode: '', // Сбрасываем ПВЗ при смене города
       pickupAddress: '',
       street: ''
     }));
-    // После выбора города сразу показываем карту
+    setTempSelectedPoint(null); // Сбрасываем временный выбор
+    
+    // После выбора города сразу показываем карту, если выбран тип "ПВЗ"
     if (deliveryType === 'pickup') {
       setView('map');
     }
@@ -105,32 +114,47 @@ export default function AddressEditor({ userId, open, onClose }: Props) {
   
   const handleDeliveryTypeChange = (type: 'pickup' | 'address') => {
       setFormData(prev => ({...prev, deliveryType: type}));
-      setView(type === 'pickup' ? 'map' : 'form'); // Показываем карту, если выбран ПВЗ
-  }
+      if (type === 'pickup' && formData.city_code) {
+        setView('map');
+      } else {
+        setView('form');
+      }
+  };
 
-  const handlePointSelect = (point: {code: string, address: string, coords: [number, number]}) => {
-      setFormData(prev => ({...prev, pickupCode: point.code, pickupAddress: point.address}));
-      setSelectedPointCode(point.code);
-  }
+  // ✅ Этот обработчик теперь обновляет только ВРЕМЕННОЕ состояние
+  const handlePointSelectOnMap = (point: {code: string, address: string, coords: [number, number]}) => {
+      setTempSelectedPoint({ code: point.code, address: point.address });
+  };
 
-  // ✅ НОВЫЕ ФУНКЦИИ УПРАВЛЕНИЯ ВИДОМ
+  // ✅ Кнопка "Подтвердить" теперь берет данные из временного состояния и сохраняет в основное
   const handleConfirmSelection = () => {
-    setView('form'); // Просто меняем вид на форму
+    if (tempSelectedPoint) {
+      setFormData(prev => ({
+        ...prev,
+        pickupCode: tempSelectedPoint.code,
+        pickupAddress: tempSelectedPoint.address
+      }));
+    }
+    setView('form'); // Переключаемся на форму
   };
   
   const handleBackToMap = () => {
-    setView('map'); // Возвращаемся к карте
+    // При возврате на карту сбрасываем временный выбор, чтобы карта показала сохраненный ПВЗ
+    setTempSelectedPoint(null);
+    setView('map');
   };
   
   const handleStartEditing = () => {
     setMode('editing');
-    // Если доставка - ПВЗ, сразу открываем карту
     if (deliveryType === 'pickup') {
       setView('map');
     } else {
       setView('form');
     }
   };
+
+  // Код активного ПВЗ на карте: либо временный выбор, либо уже сохраненный в форме
+  const activeMapPointCode = tempSelectedPoint?.code || formData.pickupCode || null;
 
   return (
     <BottomSheet ref={sheetRef} title="Адрес доставки" open={open} onClose={onClose}>
@@ -160,7 +184,7 @@ export default function AddressEditor({ userId, open, onClose }: Props) {
                       <div className="text-sm text-white">{formData.name}, {formData.phone}</div>
                    </div>
                    <button 
-                     onClick={() => sheetRef.current?.dismiss()} // Используем dismiss() для правильного закрытия
+                     onClick={() => sheetRef.current?.dismiss()}
                      className="w-full rounded-2xl text-white text-sm font-semibold py-4 transition-all duration-300 bg-white/10 hover:bg-white/15 border border-white/20">
                     Закрыть
                   </button>
@@ -184,7 +208,6 @@ export default function AddressEditor({ userId, open, onClose }: Props) {
                     </div>
                   </div>
 
-                  {/* 🔥🔥🔥 БЛОК С АНИМАЦИЯМИ 🔥🔥🔥 */}
                   <div className="relative">
                     <AnimatePresence initial={false}>
                       {view === 'map' && deliveryType === 'pickup' && (
@@ -211,23 +234,24 @@ export default function AddressEditor({ userId, open, onClose }: Props) {
                             )}
                           </div>
                           
-                          {formData.city_code && (
+                          {formData.city_code > 0 && (
                             <div className="space-y-3">
-                              <label className="text-xs font-medium text-white/40 uppercase tracking-wider">Выбери пункт выдачи</label>
+                              <label className="text-xs font-medium text-white/40 uppercase tracking-wider">Выбери пункт выдачи на карте</label>
                               {isLoadingPoints ? ( <MapSkeleton /> ) : (
                                 <>
                                   <MapSelectorController 
-                                    key="map-selector"
-                                    cityCode={formData.city_code} pickupPoints={pickupPoints || []} 
-                                   selectedPoint={{ code: selectedPointCode || '', label: '' }} onPointSelect={handlePointSelect} 
+                                    cityCode={formData.city_code} 
+                                    pickupPoints={pickupPoints || []} 
+                                    selectedCode={activeMapPointCode}
+                                    onSelect={handlePointSelectOnMap} 
                                   />
-                                  {selectedPointCode && (
+                                  {tempSelectedPoint && (
                                     <div className="relative p-4 rounded-2xl border border-sky-400/30 bg-sky-500/10 backdrop-blur-sm">
                                       <div className="flex items-start gap-3">
                                         <BuildingStorefrontIcon className="w-5 h-5 text-sky-400 shrink-0 mt-0.5" />
                                         <div className="flex-1 min-w-0">
-                                          <div className="text-xs text-sky-300/70 mb-1">Выбран новый пункт</div>
-                                          <div className="text-sm text-white leading-relaxed">{formData.pickupAddress}</div>
+                                          <div className="text-xs text-sky-300/70 mb-1">Выбран ПВЗ:</div>
+                                          <div className="text-sm text-white leading-relaxed">{tempSelectedPoint.address}</div>
                                         </div>
                                       </div>
                                       <button onClick={handleConfirmSelection} className="absolute top-3 right-3 px-3 py-1 text-xs bg-sky-500/20 text-sky-300 rounded-full font-medium hover:bg-sky-500/30 transition">Подтвердить</button>
@@ -267,17 +291,17 @@ export default function AddressEditor({ userId, open, onClose }: Props) {
                             ) : (
                               <div className="space-y-2">
                                 <label className="text-xs font-medium text-white/40 uppercase tracking-wider">Улица, дом</label>
-                                <input value={formData.street} onChange={(e) => setFormData(prev => ({...prev, street: e.target.value}))} className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-3 text-white placeholder:text-white/40 text-sm outline-none focus:border-white/30 focus:ring-2 focus:ring-white/10 transition" placeholder="Например, ул. Ленина, 15"/>
+                                <input value={formData.street || ''} onChange={(e) => setFormData(prev => ({...prev, street: e.target.value}))} className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-3 text-white placeholder:text-white/40 text-sm outline-none focus:border-white/30 focus:ring-2 focus:ring-white/10 transition" placeholder="Например, ул. Ленина, 15"/>
                               </div>
                             )}
 
                             <div className="space-y-2">
                               <label className="text-xs font-medium text-white/40 uppercase tracking-wider">Имя получателя</label>
-                              <input value={formData.name} onChange={(e) => setFormData(prev => ({...prev, name: e.target.value}))} className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-3 text-white placeholder:text-white/40 text-sm outline-none focus:border-white/30 focus:ring-2 focus:ring-white/10" placeholder="Как к вам обращаться?"/>
+                              <input value={formData.name || ''} onChange={(e) => setFormData(prev => ({...prev, name: e.target.value}))} className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-3 text-white placeholder:text-white/40 text-sm outline-none focus:border-white/30 focus:ring-2 focus:ring-white/10" placeholder="Как к вам обращаться?"/>
                             </div>
                             <div className="space-y-2">
                               <label className="text-xs font-medium text-white/40 uppercase tracking-wider">Телефон</label>
-                              <input value={formData.phone} onChange={(e) => setFormData(prev => ({...prev, phone: e.target.value}))} className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-3 text-white placeholder:text-white/40 text-sm outline-none focus:border-white/30 focus:ring-2 focus:ring-white/10" placeholder="+7 (999) 123-45-67" type="tel"/>
+                              <input value={formData.phone || ''} onChange={(e) => setFormData(prev => ({...prev, phone: e.target.value}))} className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-3 text-white placeholder:text-white/40 text-sm outline-none focus:border-white/30 focus:ring-2 focus:ring-white/10" placeholder="+7 (999) 123-45-67" type="tel"/>
                             </div>
                          </motion.div>
                       )}

@@ -1,29 +1,26 @@
-// src/components/MapSelectorController.tsx
+// src/components/MapSelectorController.tsx - ОКОНЧАТЕЛЬНО ИСПРАВЛЕННАЯ ВЕРСИЯ
+
 import { Suspense, lazy, useMemo } from "react";
 import MapSkeleton from "./MapSkeleton";
 
 const LazyYandexMap = lazy(() => import("./YandexMap"));
-
-interface Point {
-  code: string;
-  label: string;
-}
 
 interface PickupPoint {
   code: string;
   location: { latitude: number; longitude: number; address: string; };
 }
 
+// ✅ ВОЗВРАЩАЕМ ПРАВИЛЬНЫЙ ИНТЕРФЕЙС
 interface Props {
-  // ✅ ФИКС: Принимаем cityCode как число
   cityCode: number;
   pickupPoints: PickupPoint[];
-  selectedPoint: Point | null;
-  onPointSelect: (point: { code: string, address: string, coords: [number, number] }) => void;
+  selectedCode: string | null;
+  // ✅ ВОТ ОН, ВЕРНУЛСЯ НА МЕСТО
+  onSelect: (point: { code: string; address: string; coords: [number, number] }) => void;
 }
 
 export default function MapSelectorController({
-  cityCode, pickupPoints, selectedPoint, onPointSelect
+  cityCode, pickupPoints, selectedCode, onSelect
 }: Props) {
 
   // Проверяем, что cityCode - это валидное число больше нуля
@@ -43,8 +40,9 @@ export default function MapSelectorController({
     <Suspense fallback={<MapSkeleton />}>
       <LazyYandexMap
         points={mapPoints}
-        onSelect={onPointSelect}
-        selectedCode={selectedPoint?.code || null}
+        // ✅ Передаем onSelect дальше в YandexMap
+        onSelect={onSelect}
+        selectedCode={selectedCode}
       />
     </Suspense>
   );
