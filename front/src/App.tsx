@@ -22,7 +22,7 @@ interface ExtendedWebApp {
       allows_write_to_pm?: boolean;
       photo_url?: string;
     };
-    start_param?: string; 
+    start_param?: string;
   };
   ready(): void;
   expand(): void;
@@ -42,6 +42,7 @@ interface ExtendedWebApp {
     notificationOccurred(type: 'error' | 'success' | 'warning'): void;
     selectionChanged(): void;
   };
+  openTelegramLink: (url: string) => void;
 }
 
 declare global {
@@ -112,8 +113,15 @@ export default function App() {
         // 1. Приложение НЕ в полноэкранном режиме (т.е. открыто в шторке)
         // 2. У нас НЕТ start_param (чтобы избежать бесконечного цикла редиректов)
         if (!tg.initDataUnsafe.start_param) {
-          window.location.href = `https://t.me/ariyaappbot?startapp=force_fullscreen`;
-          return;
+            // ...НО вместо редиректа через window.location...
+            // window.location.href = `https://t.me/ariyaappbot?startapp=force_fullscreen`;
+
+            // ...мы используем ОФИЦИАЛЬНЫЙ, ПРАВИЛЬНЫЙ метод Telegram API.
+            // Это приказ самому клиенту, а не браузеру. Он должен обработать его корректно.
+            tg.openTelegramLink(`https://t.me/ariyaappbot?startapp=force_fullscreen`);
+            
+            // Прерываем выполнение, чтобы избежать ошибок.
+            return;
         }
         // 🔥🔥🔥 КОНЕЦ ХАКА 🔥🔥🔥
 
