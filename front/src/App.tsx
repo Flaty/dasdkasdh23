@@ -10,13 +10,35 @@ import OrdersPage from "./pages/OrdersPage";
 import PageWrapperFade from "./components/PageWrapperFade";
 import TabBarLayout from "./layouts/TabBarLayout";
 
-// Импортируем тип WebApp из установленного пакета
-import type { WebApp } from '@twa-dev/types';
+// Расширяем типы для новых методов
+interface ExtendedWebApp {
+  initData: string;
+  initDataUnsafe: {
+    user?: {
+      id: number;
+      first_name: string;
+      last_name?: string;
+      username?: string;
+      language_code?: string;
+      allows_write_to_pm?: boolean;
+      photo_url?: string;
+    };
+  };
+  ready(): void;
+  expand(): void;
+  close(): void;
+  setHeaderColor(color: string): void;
+  setBackgroundColor(color: string): void;
+  enableClosingConfirmation(): void;
+  disableClosingConfirmation(): void;
+  enableVerticalSwipes(): void;
+  disableVerticalSwipes(): void;
+}
 
 declare global {
   interface Window {
-    Telegram: {
-      WebApp: WebApp;
+    Telegram?: {
+      WebApp: ExtendedWebApp;
     };
   }
 }
@@ -39,9 +61,9 @@ const ErrorScreen = ({ message }: { message: string }) => (
 /**
  * Ожидает инициализации Telegram WebApp с небольшим таймаутом.
  * @param {number} timeout - Максимальное время ожидания в миллисекундах.
- * @returns {Promise<WebApp>} - Промис, который разрешается с объектом Telegram.WebApp.
+ * @returns {Promise<ExtendedWebApp>} - Промис, который разрешается с объектом Telegram.WebApp.
  */
-const waitForTelegram = (timeout = 3000): Promise<WebApp> => {
+const waitForTelegram = (timeout = 3000): Promise<ExtendedWebApp> => {
   return new Promise((resolve, reject) => {
     let attempts = 0;
     const interval = 100;
@@ -74,7 +96,6 @@ export default function App() {
   useEffect(() => {
     const initializeApp = async () => {
       try {
-        // Теперь tg будет иметь правильный тип WebApp
         const tg = await waitForTelegram();
         
         tg.ready();
@@ -83,6 +104,11 @@ export default function App() {
         tg.setBackgroundColor('secondary_bg_color');
         tg.setBackgroundColor('#0a0a0a');
         tg.enableClosingConfirmation();
+        
+        // Enable vertical swipes by default
+        if (typeof tg.enableVerticalSwipes === 'function') {
+          tg.enableVerticalSwipes();
+        }
 
         const response = await fetch('/api/auth/verify', {
           method: 'POST',
