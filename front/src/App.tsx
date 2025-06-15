@@ -10,7 +10,6 @@ import TabBarLayout from "./layouts/TabBarLayout";
 
 // Расширяем типы для новых методов
 interface ExtendedWebApp {
-  isExpanded: boolean;
   initData: string;
   initDataUnsafe: {
     user?: {
@@ -22,7 +21,6 @@ interface ExtendedWebApp {
       allows_write_to_pm?: boolean;
       photo_url?: string;
     };
-    start_param?: string;
   };
   ready(): void;
   expand(): void;
@@ -42,7 +40,6 @@ interface ExtendedWebApp {
     notificationOccurred(type: 'error' | 'success' | 'warning'): void;
     selectionChanged(): void;
   };
-  openTelegramLink: (url: string) => void;
 }
 
 declare global {
@@ -108,30 +105,15 @@ export default function App() {
       try {
         const tg = await waitForTelegram();
         
-        // 🔥🔥🔥 НАЧАЛО ХАКА "ХИТРЫЙ РЕДИРЕКТ" 🔥🔥🔥
-        // Проверяем два условия:
-        // 1. Приложение НЕ в полноэкранном режиме (т.е. открыто в шторке)
-        // 2. У нас НЕТ start_param (чтобы избежать бесконечного цикла редиректов)
-        if (!tg.initDataUnsafe.start_param) {
-            // ...НО вместо редиректа через window.location...
-            // window.location.href = `https://t.me/ariyaappbot?startapp=force_fullscreen`;
-
-            // ...мы используем ОФИЦИАЛЬНЫЙ, ПРАВИЛЬНЫЙ метод Telegram API.
-            // Это приказ самому клиенту, а не браузеру. Он должен обработать его корректно.
-            tg.openTelegramLink(`https://t.me/ariyaappbot?startapp=force_fullscreen`);
-            
-            // Прерываем выполнение, чтобы избежать ошибок.
-            return;
-        }
-        // 🔥🔥🔥 КОНЕЦ ХАКА 🔥🔥🔥
-
-        // Если редирект не потребовался, выполняем обычную инициализацию
         tg.ready();
-        tg.expand(); // Эта команда все еще нужна для обычных запусков
+        tg.expand();
         tg.setHeaderColor('secondary_bg_color'); 
+        tg.setBackgroundColor('secondary_bg_color');
         tg.setBackgroundColor('#0a0a0a');
         tg.enableClosingConfirmation();
         
+        
+        // Enable vertical swipes by default
         if (typeof tg.enableVerticalSwipes === 'function') {
           tg.enableVerticalSwipes();
         }
