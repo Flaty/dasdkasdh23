@@ -1,13 +1,11 @@
 // src/App.tsx - ИСПРАВЛЕННАЯ ВЕРСИЯ C ТИПАМИ
 import { useState, useEffect } from "react";
 import { Routes, Route, useLocation, Navigate } from "react-router-dom";
-import { AnimatePresence } from "framer-motion";
 
 import { setUserData, clearUserData } from './utils/user';
 import Calc from "./pages/Calc";
 import Profile from "./pages/Profile";
 import OrdersPage from "./pages/OrdersPage";
-import PageWrapperFade from "./components/PageWrapperFade";
 import TabBarLayout from "./layouts/TabBarLayout";
 
 // Расширяем типы для новых методов
