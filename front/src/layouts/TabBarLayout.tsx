@@ -13,7 +13,10 @@ export default function TabBarLayout() {
   }, [location.pathname]);
 
   return (
-    <div className="fixed inset-0 bg-[#0a0a0a]">
+    <div className="fixed inset-0 bg-[#0a0a0a]" style={{
+      paddingTop: 'env(safe-area-inset-top)',
+      paddingBottom: 'env(safe-area-inset-bottom)'
+    }}>
 
       <UnpaidOrderBanner />
 
@@ -22,14 +25,15 @@ export default function TabBarLayout() {
         ref={scrollContainerRef}
         className="absolute inset-0 overflow-y-auto no-scrollbar"
         style={{
-          paddingTop: '0px', // Убираем, так как уже есть на родителе
-          paddingBottom: '64px', // Только высота TabBar
           WebkitOverflowScrolling: 'touch',
         }}
       >
         {/* 🔥🔥🔥 ВОТ ОН, ТРЮК С 1 ПИКСЕЛЕМ 🔥🔥🔥 */}
         {/* Этот div ВСЕГДА чуть-чуть выше экрана, заставляя родителя быть скроллящимся */}
-        <div className="relative" style={{ minHeight: 'calc(100% + 1px)' }}>
+        <div className="relative" style={{ 
+          minHeight: 'calc(100% + 1px)',
+          paddingBottom: 'calc(64px + env(safe-area-inset-bottom))'
+        }}>
           <AnimatePresence mode="wait">
             <motion.div
               key={location.pathname}

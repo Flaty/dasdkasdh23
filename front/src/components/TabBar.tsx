@@ -20,8 +20,10 @@ export default function TabBar() {
 
   return (
     <div 
-      className="fixed bottom-0 left-0 right-0 h-16 z-50 flex justify-around items-center"
+      className="fixed bottom-0 left-0 right-0 z-50 flex justify-around items-center"
       style={{
+        height: 'calc(64px + env(safe-area-inset-bottom))',
+        paddingBottom: 'env(safe-area-inset-bottom)',
         // Более прозрачный фон с усиленным blur
         background: 'rgba(0, 0, 0, 0.65)', // Было 0.90, теперь 0.65
         backdropFilter: 'blur(24px) saturate(180%)',
