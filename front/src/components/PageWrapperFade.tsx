@@ -1,54 +1,31 @@
+// src/components/PageWrapperFade.tsx - НОВАЯ, ПРАВИЛЬНАЯ ВЕРСИЯ
 
 import { motion } from "framer-motion";
-import { useEffect } from "react";
-import { useLocation } from "react-router-dom";
 
 export default function PageWrapperFade({
   children,
-  scrollable = false, // Этот пропс теперь будет реально управлять скроллом
 }: {
   children: React.ReactNode;
-  scrollable?: boolean;
 }) {
-  const location = useLocation();
-
-  // 🔥 ФИКС: Управляем скроллом на уровне body при монтировании/размонтировании страницы
-  useEffect(() => {
-    // Если страница помечена как scrollable, разрешаем скролл для body
-    document.body.style.overflow = scrollable ? "auto" : "hidden";
-    
-    // Функция очистки: возвращаем скролл по умолчанию, когда страница уходит
-    return () => {
-      document.body.style.overflow = "auto";
-    };
-  }, [scrollable, location.key]); // Зависим от scrollable и ключа локации
-
   return (
-    // AnimatePresence убираем отсюда, он уже есть в App.tsx
+    // 🔥 ЭТОТ motion.div - ТОЛЬКО ДЛЯ АНИМАЦИИ ВХОДА/ВЫХОДА
+    // Он НЕ имеет высоты, отступов или стилей overflow.
     <motion.div
-      key={location.pathname}
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
       transition={{ 
-        duration: 0.1, // Очень быстрый фейд
+        duration: 0.15, // Быстрый фейд, как в Telegram
         ease: "easeOut"
       }}
-      // 🔥 ФИКС: Этот div теперь всегда может быть прокручен, если контента много.
-      // Это "съедает" свайпы, не давая им уйти в Telegram.
-      className={`min-h-screen ${
-        scrollable
-          ? "overflow-y-auto" // Если страница должна скроллиться
-          : "overflow-y-hidden" // Если не должна
-      }`}
     >
-      {/* Дополнительный слой для микро-анимации контента */}
+      {/* Дополнительный слой для микро-анимации контента при загрузке */}
       <motion.div
-        initial={{ opacity: 0.8, scale: 0.995 }}
+        initial={{ opacity: 0.8, scale: 0.99 }}
         animate={{ opacity: 1, scale: 1 }}
         transition={{
           duration: 0.2,
-          ease: "easeOut",
+          ease: "easeOut"
         }}
       >
         {children}

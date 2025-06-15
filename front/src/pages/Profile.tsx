@@ -120,11 +120,7 @@ export default function Profile() {
   if (!profile) return null;
 
   return (
-    <div className="relative min-h-screen bg-[#0a0a0a] text-white px-4 
-                   pt-[calc(env(safe-area-inset-top,0px)+16px)] 
-                   pb-[80px] 
-                   overflow-hidden max-w-screen-sm mx-auto no-scrollbar"
-    >
+     <div className="px-4 pt-4">
       <div id="glow-wrapper" className="absolute top-0 left-0 right-0 bottom-0 -z-10 pointer-events-none overflow-hidden">
         <div className="absolute top-[15%] left-[25%] w-[360px] h-[360px] rounded-full" style={{ backgroundColor: "transparent", boxShadow: "0 0 160px 80px rgba(147, 51, 234, 0.2)" }} />
         <div className="absolute bottom-[8%] right-[15%] w-[280px] h-[280px] rounded-full" style={{ backgroundColor: "transparent", boxShadow: "0 0 120px 60px rgba(59, 130, 246, 0.2)" }} />
@@ -140,7 +136,7 @@ export default function Profile() {
         <div className="text-xs text-white/30">В экосистеме {formatDays(profile.days_in_ecosystem)}</div>
       </div>
 
-      <div className="flex flex-col gap-3 pb-20">
+      <div className="flex flex-col gap-3">
 {profile.last_order && (
   <ProfileCard 
     title="Последний заказ" 
