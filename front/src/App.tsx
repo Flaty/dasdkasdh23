@@ -111,6 +111,13 @@ export default function App() {
         tg.setBackgroundColor('secondary_bg_color');
         tg.setBackgroundColor('#0a0a0a');
         tg.enableClosingConfirmation();
+        const viewport = (tg as any).viewport;
+          if (viewport?.requestFullscreen?.isAvailable?.()) {
+            console.log("✅ Fullscreen доступен, пробуем перейти");
+            await viewport.requestFullscreen();
+          } else {
+            console.log("❌ Fullscreen не доступен");
+          }
         
         // Enable vertical swipes by default
         if (typeof tg.enableVerticalSwipes === 'function') {
