@@ -29,16 +29,10 @@ export default function TabBarLayout() {
         style={{ WebkitOverflowScrolling: 'touch' }}
       >
         <div className="relative" style={{ minHeight: 'calc(100% + 1px)' }}>
-          {/* 
-            ✅ SENIOR UX FIX:
-            1. Добавляем отступ для шапки Telegram (TELEGRAM_HEADER_HEIGHT).
-            2. Добавляем дополнительный "воздушный" отступ (EXTRA_TOP_PADDING).
-            3. Нижний отступ теперь только под сам TabBar и safe-area, без лишнего.
-               Дополнительный отступ для контента будет на самих страницах.
-          */}
           <div style={{
             paddingTop: `calc(var(--safe-area-top) + ${TELEGRAM_HEADER_HEIGHT} + ${EXTRA_TOP_PADDING})`,
-            paddingBottom: `calc(64px + var(--safe-area-bottom))`,
+            // 🔥 ФИКС: Нижний отступ теперь равен высоте таббара + отступ для "челки"
+            paddingBottom: `calc(var(--tab-bar-height) + var(--safe-area-bottom))`,
           }}>
             <AnimatePresence mode="wait">
               <motion.div

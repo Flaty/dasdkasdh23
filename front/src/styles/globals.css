@@ -47,6 +47,7 @@ body::after {
   --text-primary: #ffffff;
   --text-secondary: rgba(255, 255, 255, 0.7);
   --text-muted: rgba(255, 255, 255, 0.4);
+  --tab-bar-height: 64px;
   
   /* Spacing */
   --radius-sm: 12px;

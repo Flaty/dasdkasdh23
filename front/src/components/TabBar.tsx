@@ -1,11 +1,13 @@
-// src/components/TabBar.tsx - Translucent version with subtle glow
+// src/components/TabBar.tsx - ФИНАЛЬНАЯ НЕПОБЕДИМАЯ ВЕРСИЯ
+
 import { useLocation } from "react-router-dom";
 import { User, Package, Calculator } from "lucide-react";
 import { useCustomNavigate } from "../utils/useCustomNavigate";
 import { motion } from "framer-motion";
 import { useState, useRef } from "react";
 import { haptic } from "../utils/haptic";
-import { useSafeArea } from "./SafeAreaProvider";
+// 🔥 SafeAreaProvider больше не нужен здесь, мы используем CSS-переменные
+// import { useSafeArea } from "./SafeAreaProvider";
 
 const tabs = [
   { to: "/profile", label: "Профиль", icon: User },
@@ -18,16 +20,18 @@ export default function TabBar() {
   const location = useLocation();
   const [pressedTab, setPressedTab] = useState<string | null>(null);
   const [touchPoint, setTouchPoint] = useState({ x: 0, y: 0 });
-  const safeArea = useSafeArea();
+  // const safeArea = useSafeArea(); // 👈 Убираем
 
   return (
     <div 
-      className="absolute bottom-0 left-0 right-0 z-50 flex justify-around items-center"
+      // 🔥 ФИКС 1: ТАББАР НЕ ПРЫГАЕТ.
+      // Используем `fixed`, но padding будет компенсировать "челку".
+      className="fixed bottom-0 left-0 right-0 z-50 flex justify-around items-center"
       style={{
-        height: `calc(64px + ${safeArea.bottom}px)`,
-        paddingBottom: `${safeArea.bottom}px`,
-        // Более прозрачный фон с усиленным blur
-        background: 'rgba(0, 0, 0, 0.65)', // Было 0.90, теперь 0.65
+        // Высота таббара теперь фиксирована в CSS, а отступ для "челки" добавляется паддингом
+        height: 'var(--tab-bar-height)', 
+        paddingBottom: 'var(--safe-area-bottom)', // Используем CSS-переменную
+        background: 'rgba(0, 0, 0, 0.65)',
         backdropFilter: 'blur(24px) saturate(180%)',
         WebkitBackdropFilter: 'blur(24px) saturate(180%)',
         borderTop: '1px solid rgba(255, 255, 255, 0.06)',
@@ -123,44 +127,33 @@ export default function TabBar() {
             )}
 
             {/* Иконка с 3D эффектом */}
-            <motion.div
-    className="relative"
-    // 🔥🔥🔥 SENIOR FIX 🔥🔥🔥
-    animate={{
-        // УБИРАЕМ: scale: isActive ? 1.12 : 1,
-        y: isActive ? -4 : (isPressed ? 2 : 0), // 👈 Активная иконка приподнимается на 4px
-        rotateX: isPressed ? -10 : 0,
-    }}
-    transition={{
-        type: "spring",
-        stiffness: 400, // Чуть жестче пружина
-        damping: 15,   // Чуть больше "колебаний" для живости
-    }}
-    style={{
-        transformStyle: "preserve-3d",
-        perspective: 1000,
-    }}
->
-    <Icon 
-        size={20} 
-        strokeWidth={isActive ? 2.2 : 1.8} 
-        className={`relative z-10 transition-all duration-300 ${
-            isActive 
-            ? "text-white drop-shadow-[0_0_4px_rgba(255,255,255,0.3)]"
-            : "text-white/50"
-        }`}
-    />
-    
-    {/* Мягкое свечение под иконкой */}
-    {isActive && (
-    <motion.div
-        className="absolute -inset-1 bg-white/15 rounded-full blur-sm"
-        initial={{ scale: 0, opacity: 0 }}
-        animate={{ scale: 1, opacity: 0.4 }}
-        transition={{ duration: 0.3 }}
-    />
-    )}
-</motion.div>
+<motion.div
+                className="relative"
+                animate={{
+                    // Движение по Y - это круто и безопасно, оставляем
+                    y: isActive ? -4 : (isPressed ? 2 : 0),
+                    rotateX: isPressed ? -10 : 0,
+                }}
+                transition={{ type: "spring", stiffness: 400, damping: 15 }}
+                style={{ transformStyle: "preserve-3d", perspective: 1000 }}
+            >
+                <Icon 
+                    size={20} 
+                    // Убираем смену strokeWidth, чтобы не было микро-скачков
+                    strokeWidth={2} 
+                    // Управляем активностью через opacity, а не через цвет/тень
+                    className={`relative z-10 transition-opacity duration-300 ${isActive ? "opacity-100" : "opacity-50"}`}
+                />
+                
+                {isActive && (
+                    <motion.div
+                        className="absolute -inset-1 bg-white/15 rounded-full blur-sm"
+                        initial={{ scale: 0, opacity: 0 }}
+                        animate={{ scale: 1, opacity: 0.4 }}
+                        transition={{ duration: 0.3 }}
+                    />
+                )}
+            </motion.div>
 
 <motion.span 
     className={`relative z-10 text-[11px] transition-all duration-300 ${
