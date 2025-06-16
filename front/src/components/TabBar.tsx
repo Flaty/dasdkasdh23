@@ -124,62 +124,63 @@ export default function TabBar() {
 
             {/* Иконка с 3D эффектом */}
             <motion.div
-              className="relative"
-              animate={{
-                scale: isActive ? 1.12 : 1,
-                y: isPressed ? 2 : 0,
-                rotateX: isPressed ? -10 : 0,
-              }}
-              transition={{
-                type: "spring",
-                stiffness: 500,
-                damping: 20,
-              }}
-              style={{
-                transformStyle: "preserve-3d",
-                perspective: 1000,
-              }}
-            >
-              <Icon 
-                size={20} 
-                strokeWidth={isActive ? 2.2 : 1.8} 
-                className={`relative z-10 transition-all duration-300 ${
-                  isActive 
-                    ? "text-white drop-shadow-[0_0_4px_rgba(255,255,255,0.3)]" // Меньше свечения
-                    : "text-white/50"
-                }`}
-              />
-              
-              {/* Мягкое свечение под иконкой */}
-              {isActive && (
-                <motion.div
-                  className="absolute -inset-1 bg-white/15 rounded-full blur-sm" // Меньше inset и blur
-                  initial={{ scale: 0, opacity: 0 }}
-                  animate={{ scale: 1, opacity: 0.4 }}
-                  transition={{ duration: 0.3 }}
-                />
-              )}
-            </motion.div>
+    className="relative"
+    // 🔥🔥🔥 SENIOR FIX 🔥🔥🔥
+    animate={{
+        // УБИРАЕМ: scale: isActive ? 1.12 : 1,
+        y: isActive ? -4 : (isPressed ? 2 : 0), // 👈 Активная иконка приподнимается на 4px
+        rotateX: isPressed ? -10 : 0,
+    }}
+    transition={{
+        type: "spring",
+        stiffness: 400, // Чуть жестче пружина
+        damping: 15,   // Чуть больше "колебаний" для живости
+    }}
+    style={{
+        transformStyle: "preserve-3d",
+        perspective: 1000,
+    }}
+>
+    <Icon 
+        size={20} 
+        strokeWidth={isActive ? 2.2 : 1.8} 
+        className={`relative z-10 transition-all duration-300 ${
+            isActive 
+            ? "text-white drop-shadow-[0_0_4px_rgba(255,255,255,0.3)]"
+            : "text-white/50"
+        }`}
+    />
+    
+    {/* Мягкое свечение под иконкой */}
+    {isActive && (
+    <motion.div
+        className="absolute -inset-1 bg-white/15 rounded-full blur-sm"
+        initial={{ scale: 0, opacity: 0 }}
+        animate={{ scale: 1, opacity: 0.4 }}
+        transition={{ duration: 0.3 }}
+    />
+    )}
+</motion.div>
 
-            {/* Текст с эффектом веса */}
-            <motion.span 
-              className={`relative z-10 text-[11px] transition-all duration-300 ${
-                isActive 
-                  ? "text-white font-semibold" 
-                  : "text-white/50 font-medium"
-              }`}
-              animate={{
-                y: isPressed ? 1 : 0,
-                letterSpacing: isActive ? "0.01em" : "0",
-              }}
-              transition={{
-                type: "spring",
-                stiffness: 500,
-                damping: 25,
-              }}
-            >
-              {label}
-            </motion.span>
+<motion.span 
+    className={`relative z-10 text-[11px] transition-all duration-300 ${
+    isActive 
+        ? "text-white font-semibold" 
+        : "text-white/50 font-medium"
+    }`}
+    // 🔥 И текст тоже приподнимаем вместе с иконкой
+    animate={{
+        y: isActive ? -2 : (isPressed ? 1 : 0),
+        letterSpacing: isActive ? "0.01em" : "0",
+    }}
+    transition={{
+        type: "spring",
+        stiffness: 400,
+        damping: 15,
+    }}
+>
+    {label}
+</motion.span>
 
             {/* Индикатор активности */}
             {isActive && (
