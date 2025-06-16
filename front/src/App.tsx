@@ -1,4 +1,5 @@
-// src/App.tsx - ИСПРАВЛЕННАЯ ВЕРСИЯ C ТИПАМИ
+// src/App.tsx - ВОЗВРАЩЕНИЕ К СТАБИЛЬНОМУ ОРИГИНАЛУ
+
 import { useState, useEffect } from "react";
 import { Routes, Route, useLocation, Navigate } from "react-router-dom";
 
@@ -8,7 +9,7 @@ import Profile from "./pages/Profile";
 import OrdersPage from "./pages/OrdersPage";
 import TabBarLayout from "./layouts/TabBarLayout";
 
-// Расширяем типы для новых методов
+// Твой оригинальный, рабочий интерфейс. Он правильный.
 interface ExtendedWebApp {
   initData: string;
   initDataUnsafe: {
@@ -65,11 +66,7 @@ const ErrorScreen = ({ message }: { message: string }) => (
   </div>
 );
 
-/**
- * Ожидает инициализации Telegram WebApp с небольшим таймаутом.
- * @param {number} timeout - Максимальное время ожидания в миллисекундах.
- * @returns {Promise<ExtendedWebApp>} - Промис, который разрешается с объектом Telegram.WebApp.
- */
+// Твоя оригинальная, рабочая функция ожидания.
 const waitForTelegram = (timeout = 3000): Promise<ExtendedWebApp> => {
   return new Promise((resolve, reject) => {
     let attempts = 0;
@@ -83,11 +80,7 @@ const waitForTelegram = (timeout = 3000): Promise<ExtendedWebApp> => {
         attempts++;
         setTimeout(check, interval);
       } else {
-        if (window.Telegram?.WebApp) {
-            reject(new Error("Не удалось получить данные для входа. Пожалуйста, запускайте приложение через меню или кнопку в боте Telegram."));
-        } else {
-            reject(new Error("Это приложение должно быть запущено внутри Telegram. Если ошибка повторяется, попробуйте перезапустить клиент."));
-        }
+        reject(new Error("Не удалось получить данные для входа. Пожалуйста, перезапустите приложение."));
       }
     };
     check();
@@ -105,15 +98,13 @@ export default function App() {
       try {
         const tg = await waitForTelegram();
         
+        // ПРОСТАЯ И НАДЕЖНАЯ ИНИЦИАЛИЗАЦИЯ
         tg.ready();
         tg.expand();
         tg.setHeaderColor('secondary_bg_color'); 
-        tg.setBackgroundColor('secondary_bg_color');
         tg.setBackgroundColor('#0a0a0a');
         tg.enableClosingConfirmation();
         
-        
-        // Enable vertical swipes by default
         if (typeof tg.enableVerticalSwipes === 'function') {
           tg.enableVerticalSwipes();
         }
@@ -158,19 +149,9 @@ export default function App() {
   }
 
   return (
-    // AnimatePresence переехал в TabBarLayout, поэтому здесь он больше не нужен.
-    // Это обеспечивает анимацию ТОЛЬКО контента страницы, а не всего layout'а вместе с TabBar.
     <Routes location={location} key={location.key}>
       <Route element={<TabBarLayout />}>
-        {/* Главный роут редиректит на профиль */}
         <Route path="/" element={<Navigate to="/profile" replace />} />
-        
-        {/* 
-          Страницы теперь рендерятся напрямую.
-          Обертка PageWrapperFade больше не нужна, так как TabBarLayout
-          уже содержит motion.div, который обрабатывает анимацию
-          появления/исчезновения Outlet'а.
-        */}
         <Route path="/calc" element={<Calc />} />
         <Route path="/profile" element={<Profile />} />
         <Route path="/cart" element={<OrdersPage />} />

@@ -22,7 +22,7 @@ export default function TabBar() {
 
   return (
     <div 
-      className="fixed bottom-0 left-0 right-0 z-50 flex justify-around items-center"
+      className="absolute bottom-0 left-0 right-0 z-50 flex justify-around items-center"
       style={{
         height: `calc(64px + ${safeArea.bottom}px)`,
         paddingBottom: `${safeArea.bottom}px`,

@@ -1,4 +1,4 @@
-// components/BottomSheetSelector.tsx
+// components/BottomSheetSelector.tsx - ВЕРСИЯ БЕЗ КРИНЖА
 
 import { useRef, useState, type ReactNode } from "react";
 import BottomSheet, { type BottomSheetHandle } from "./BottomSheet";
@@ -26,35 +26,38 @@ export default function BottomSheetSelector({
   placeholder = "Сделай выбор",
   className = ""
 }: Props) {
-  // ✅ Управляемое состояние открытия теперь здесь
   const [open, setOpen] = useState(false);
   const sheetRef = useRef<BottomSheetHandle>(null);
 
   const selected = options.find((o) => o.value === value);
 
   const handleSelect = (val: string) => {
-    haptic.light();// ✅ Легкий импульс при выборе
+    haptic.light();
     setValue(val);
     sheetRef.current?.dismiss();
   };
 
   return (
     <>
-      {/* Кнопка теперь просто открывает шторку */}
       <button
         onClick={() => setOpen(true)}
-        className={`w-full text-left flex items-center justify-between ${className}`}
+        // 🔥 УЛУЧШЕННЫЙ СТИЛЬ КНОПКИ
+        // Добавляем тернарный оператор для фона: ярче, когда открыто.
+        className={`w-full text-left flex items-center justify-between transition-colors duration-200 p-4 rounded-xl ${className} ${open ? 'bg-white/[.08]' : 'bg-white/[.04] hover:bg-white/[.06]'}`}
       >
         {selected ? selected.label : placeholder}
-        <span className={`text-gray-400 transition-transform duration-300 ${open ? '-rotate-180' : ''}`}>⌄</span>
+        {/* 🔥 УЛУЧШЕННЫЙ СТИЛЬ ИКОНКИ
+            - Убираем text-gray-400, делаем ее белой, но с прозрачностью.
+            - Вместо rotate-180 используем scale-125 (увеличение) и убираем прозрачность (text-white).
+        */}
+        <span className={`text-white/60 transition-all duration-300 ease-in-out ${open ? 'scale-125 text-white' : ''}`}>⌄</span>
       </button>
 
-      {/* ✅ Передаем `open` и `onClose` в обновленный BottomSheet */}
       <BottomSheet
         ref={sheetRef}
         title={title}
         open={open}
-        onClose={() => setOpen(false)} // Когда шторка закроется, обновляем состояние
+        onClose={() => setOpen(false)}
       >
         <div className="flex flex-col gap-2">
             {options.map((item) => {

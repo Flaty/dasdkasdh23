@@ -85,7 +85,7 @@ export default function OrdersPage() {
         <div className="flex flex-col gap-4">
           <h1 className="text-ui-h1">Мои заказы</h1>
 
-          <div className="bg-[#0f0f10] pt-1 pb-2">
+          <div className="pt-1 pb-2">
             <div className="flex gap-2 text-sm font-medium">
                 {/* ...твои кнопки фильтров... */}
                 <button onClick={() => setStatusFilter('active')} className={`px-4 py-1.5 rounded-full border border-white/10 transition-all duration-200 ${statusFilter === 'active' ? "bg-white text-black shadow-sm" : "text-white/40 hover:bg-white/10"}`}>Активные</button>
