@@ -1,49 +1,43 @@
-// src/utils/haptic.ts
+// src/utils/haptic.ts - СЕНЬОРСКАЯ ВЕРСИЯ С OPTIONAL CHAINING
 
-// Получаем доступ к API, делаем это один раз
-const HapticFeedback = window.Telegram?.WebApp?.HapticFeedback;
+/**
+ * Безопасно вызывает Haptic Feedback API, используя опциональные цепочки.
+ * Если любой из объектов (Telegram, WebApp, HapticFeedback) отсутствует,
+ * цепочка прерывается и ничего не происходит. Ошибки не будет.
+ */
+function safeImpact(type: 'light' | 'medium' | 'heavy' | 'rigid' | 'soft') {
+  window.Telegram?.WebApp?.HapticFeedback?.impactOccurred?.(type);
+}
 
-// Наш объект-сервис. Если API недоступно, все функции будут просто пустышками.
+function safeNotification(type: 'error' | 'success' | 'warning') {
+  window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred?.(type);
+}
+
+function safeSelection() {
+  window.Telegram?.WebApp?.HapticFeedback?.selectionChanged?.();
+}
+
+// Экспортируем удобный объект-сервис для использования в приложении.
+// Каждая функция теперь - это один чистый вызов.
 export const haptic = {
   /** Легкий щелчок. Для выбора, переключения табов. */
-  light: () => {
-    if (HapticFeedback) {
-      HapticFeedback.impactOccurred('light');
-    }
-  },
+  light: () => safeImpact('light'),
 
   /** Средний толчок. Для подтверждения действия (нажатие кнопки). */
-  medium: () => {
-    if (HapticFeedback) {
-      HapticFeedback.impactOccurred('medium');
-    }
-  },
+  medium: () => safeImpact('medium'),
 
   /** Сильный удар. Для важных, завершающих действий. */
-  heavy: () => {
-    if (HapticFeedback) {
-      HapticFeedback.impactOccurred('heavy');
-    }
-  },
+  heavy: () => safeImpact('heavy'),
 
   /** Сигнал об успешном завершении операции. */
-  success: () => {
-    if (HapticFeedback) {
-      HapticFeedback.notificationOccurred('success');
-    }
-  },
+  success: () => safeNotification('success'),
 
   /** Сигнал об ошибке. */
-  error: () => {
-    if (HapticFeedback) {
-      HapticFeedback.notificationOccurred('error');
-    }
-  },
+  error: () => safeNotification('error'),
 
   /** Сигнал-предупреждение. */
-  warning: () => {
-     if (HapticFeedback) {
-      HapticFeedback.notificationOccurred('warning');
-    }
-  }
+  warning: () => safeNotification('warning'),
+  
+  /** Сигнал для выбора элемента в "барабане" или списке. */
+  selection: () => safeSelection(),
 };
