@@ -26,7 +26,7 @@ const motionProps = {
   animate: { opacity: 1, scale: 1 },
   exit: { opacity: 0, scale: 0.98 },
   transition: { duration: 0.2, ease: "easeInOut" },
-};
+} as const; // 👈 ВОТ ОНО
 
 const EMPTY_ADDRESS: UserAddress = {
   userId: 0, name: '', phone: '', city: '', city_code: 0, street: '',

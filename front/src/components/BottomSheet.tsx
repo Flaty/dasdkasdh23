@@ -22,7 +22,7 @@ const IOS_SPRING = {
   stiffness: 400,
   damping: 40,
   mass: 0.8,
-};
+} as const; // 👈 И ЗДЕСЬ
 
 const BottomSheet = forwardRef<BottomSheetHandle, BottomSheetProps>(
   ({ title, onClose, children, open }, ref) => {
