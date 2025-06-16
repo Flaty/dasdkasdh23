@@ -12,6 +12,9 @@ import { useAddress } from "../hook/useAddress";
 import { InteractiveButton } from "../components/ui/InteractiveButton";
 import BottomSheetSelector from "../components/BottomSheetSelector";
 import OrderCreatedSheet from "../components/OrderCreatedSheet";
+
+import AddressEditor from "../components/AddressEditor";
+
 import { ShoppingBagIcon, TruckIcon, CubeIcon, TagIcon } from "@heroicons/react/24/outline";
 import SpinnerIcon from "../components/SpinnerIcon";
 import { haptic } from "../utils/haptic";
@@ -57,6 +60,8 @@ function calcReducer(state: CalcState, action: CalcAction): CalcState {
 export default function Calc() {
   const initialState: CalcState = { status: 'idle', url: '', price: '', category: '', delivery: '', resultText: '' };
   const [state, dispatch] = useReducer(calcReducer, initialState);
+
+  const [isAddressEditorOpen, setIsAddressEditorOpen] = useState(false);
   
   // ✅ Добавляем состояния для боттом-шита
   const [orderCreatedOpen, setOrderCreatedOpen] = useState(false);
@@ -102,9 +107,11 @@ export default function Calc() {
         toast("❌ Сначала заполните все поля заказа");
         return;
     }
-    if (!addressData || !addressData.name) {
-      toast("❌ Пожалуйста, заполните адрес доставки в профиле");
-      return;
+    if (!addressData || !addressData.city_code) { // Проверяем city_code, он надежнее
+      haptic.warning();
+      // Вместо тоста - открываем боттом-шит
+      setIsAddressEditorOpen(true);
+      return; // И останавливаем выполнение
     }
 
     dispatch({ type: 'SUBMIT' });
@@ -263,6 +270,15 @@ export default function Calc() {
           )}
         </AnimatePresence>
       </div>
+      {/* 🔥 ШАГ 4: ДОБАВЛЯЕМ РЕНДЕР РЕДАКТОРА АДРЕСА */}
+      {/* Он будет невидим, пока isAddressEditorOpen не станет true */}
+      {user && (
+        <AddressEditor
+          userId={user.id}
+          open={isAddressEditorOpen}
+          onClose={() => setIsAddressEditorOpen(false)}
+        />
+      )}
 
       {/* ✅ Вот здесь подключаем наш OrderCreatedSheet */}
       {resultData && (
